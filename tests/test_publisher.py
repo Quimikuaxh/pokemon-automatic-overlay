@@ -62,6 +62,14 @@ class TestPublisher(unittest.TestCase):
         pub.publish({"pokemonIds": [1]})
         self.assertTrue(pub.publish({"pokemonIds": [1]}, force=True))
 
+    def test_network_exception_is_caught(self):
+        def post(url, body):
+            raise ConnectionError("sin red")
+
+        pub = Publisher("https://api.test", "tok", post_fn=post, min_interval_s=0.0, clock=self.clock)
+        self.assertFalse(pub.publish({"pokemonIds": [1]}))  # no debe lanzar
+        self.assertFalse(pub.publish({"pokemonIds": [1]}))  # tampoco cachea → reintenta
+
     def test_non_2xx_does_not_cache_signature(self):
         calls = []
 

@@ -7,8 +7,12 @@ se llama cuando el detector confirma el menú abierto.
 
 from __future__ import annotations
 
+import logging
+
 from .profiles.schema import GameProfile
 from .state import SlotReading
+
+log = logging.getLogger("pvo.extractor")
 
 
 def _crop(frame, region):
@@ -23,18 +27,24 @@ class TeamExtractor:
         self._ocr = ocr
 
     def extract(self, frame) -> list[SlotReading]:
+        thr = self._profile.species.min_similarity
         readings: list[SlotReading] = []
-        for slot in self._profile.slots:
+        for i, slot in enumerate(self._profile.slots):
             icon = _crop(frame, slot.icon_region)
             dex_id, score = self._matcher.match(icon)
-            if score < self._profile.species.min_similarity:
-                # Por debajo del umbral lo tratamos como slot vacío/no fiable.
-                readings.append(SlotReading(dex_id=None, species_score=score))
-                continue
+            ok = score >= thr
 
             nickname = None
-            if self._ocr is not None and slot.text_region is not None:
+            if ok and self._ocr is not None and slot.text_region is not None:
                 nickname = self._ocr.read(_crop(frame, slot.text_region))
 
-            readings.append(SlotReading(dex_id=dex_id, species_score=score, nickname=nickname))
+            if ok:
+                log.info("  slot %d: dex=%s (sim %.2f) ✓%s",
+                         i + 1, dex_id, score, f" mote='{nickname}'" if nickname else "")
+                readings.append(SlotReading(dex_id=dex_id, species_score=score, nickname=nickname))
+            else:
+                # Mejor candidato por debajo del umbral → se trata como no fiable/vacío.
+                log.info("  slot %d: mejor candidato dex=%s (sim %.2f) ✗ descartado < %.2f",
+                         i + 1, dex_id, score, thr)
+                readings.append(SlotReading(dex_id=None, species_score=score))
         return readings

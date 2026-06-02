@@ -73,14 +73,25 @@ def run_with_config(cfg: dict, stop_event=None) -> int:
     stop = stop_event or threading.Event()
     import time
     last_beat = 0.0
+    last_err = 0.0
     first = True
     try:
         while not stop.is_set():
-            frame = capturer.grab()
+            try:
+                frame = capturer.grab()
+            except Exception as e:  # noqa: BLE001
+                now = time.monotonic()
+                if now - last_err >= 2.0:
+                    last_err = now
+                    log.error("No se pudo capturar la pantalla: %s", e)
+                stop.wait(0.5)  # no martillear si la ventana no está
+                continue
+
             if first:
                 first = False
                 log.info("Captura OK: %sx%s px. Abre el menú de equipo en el emulador.",
                          frame.shape[1], frame.shape[0])
+
             opened = detector.update(frame)
             now = time.monotonic()
             if now - last_beat >= 2.0:
@@ -88,16 +99,23 @@ def run_with_config(cfg: dict, stop_event=None) -> int:
                 log.info("vigilando… menú=%s (confianza %.2f / umbral %.2f)",
                          "SÍ" if detector.is_open else "no",
                          detector.last_confidence, detector.min_confidence)
+
             if not opened:
                 continue
+
             # Flanco de apertura del menú: extraer una vez.
+            log.info("Menú detectado — leyendo equipo:")
             readings = extractor.extract(frame)
+            recognised = sum(1 for r in readings if r.dex_id)
+            log.info("Reconocidos %d/6: %s", recognised, [r.dex_id for r in readings])
+            if recognised == 0:
+                log.warning("Ningún Pokémon reconocido. ¿Generaste embeddings.npz y "
+                            "calibraste bien las regiones de los iconos?")
+                continue
             if state.consider(readings):
-                payload = state.to_payload()
-                ok = publisher.publish(payload)
-                log.info("Equipo actualizado %s -> publicado=%s", payload["pokemonIds"], ok)
+                publisher.publish(state.to_payload())
             else:
-                log.debug("Lectura no válida o sin cambios; se mantiene el cache.")
+                log.info("Equipo igual que la última lectura; no se reenvía.")
     except KeyboardInterrupt:
         pass
     log.info("Detenido.")
