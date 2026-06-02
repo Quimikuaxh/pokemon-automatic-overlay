@@ -8,6 +8,8 @@ reference_resolution: [240, 160]   # resolución nativa GBA
 capture:
   window_title_match: "mGBA"       # o usa 'region: [x, y, w, h]' para una zona fija
   fps: 3
+  viewport: auto                   # 'auto' detecta el área de juego; o pon [x,y,w,h]
+  aspect_ratio: 1.5                # GBA = 3:2; ayuda a quitar letterbox residual
 
 menu_detector:
   template: ../../assets/templates/gba_emerald/party_menu.png

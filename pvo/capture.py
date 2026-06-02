@@ -51,12 +51,28 @@ class Capturer:
             "no hay 'region' en el perfil."
         )
 
+    def _grab_window(self):
+        """Captura la ventana/región completa (con cromo). Devuelve BGR sin redimensionar."""
+        import numpy as np  # imports perezosos
+
+        x, y, w, h = self._bbox()
+        sct = self._ensure_sct()
+        raw = sct.grab({"left": x, "top": y, "width": w, "height": h})
+        return np.asarray(raw)[:, :, :3]  # BGRA -> BGR
+
+    def _viewport(self, window_frame):
+        """Devuelve la región (x,y,w,h) del área de juego dentro de `window_frame`."""
+        if self._cfg.viewport == "auto":
+            from .viewport import detect_viewport
+            return detect_viewport(window_frame, self._cfg.aspect_ratio)
+        return self._cfg.viewport  # Region explícita del perfil
+
     def grab(self):
-        """Captura un frame y lo normaliza a `reference_resolution`.
+        """Captura un frame, recorta el viewport del juego y lo normaliza a
+        `reference_resolution`.
 
         Devuelve un array BGR (numpy) de tamaño (ref_h, ref_w, 3). Bloquea hasta
         respetar el intervalo de fps (captura a baja tasa)."""
-        import numpy as np  # imports perezosos
         import cv2
 
         wait = self._interval - (time.monotonic() - self._last_ts)
@@ -64,13 +80,13 @@ class Capturer:
             time.sleep(wait)
         self._last_ts = time.monotonic()
 
-        x, y, w, h = self._bbox()
-        sct = self._ensure_sct()
-        raw = sct.grab({"left": x, "top": y, "width": w, "height": h})
-        frame = np.asarray(raw)[:, :, :3]  # BGRA -> BGR
+        window = self._grab_window()
+        vx, vy, vw, vh = self._viewport(window)
+        viewport = window[vy:vy + vh, vx:vx + vw] if vw > 0 and vh > 0 else window
+
         ref_w, ref_h = self._ref
-        # Normalizar a resolución de referencia: deshace el upscaling entero del
-        # emulador para que las coordenadas del perfil sean estables.
-        if (frame.shape[1], frame.shape[0]) != (ref_w, ref_h):
-            frame = cv2.resize(frame, (ref_w, ref_h), interpolation=cv2.INTER_AREA)
-        return frame
+        # Normaliza el viewport a la resolución de referencia: así las coordenadas del
+        # perfil son estables sin importar tamaño de ventana ni cromo del emulador.
+        if (viewport.shape[1], viewport.shape[0]) != (ref_w, ref_h):
+            viewport = cv2.resize(viewport, (ref_w, ref_h), interpolation=cv2.INTER_AREA)
+        return viewport

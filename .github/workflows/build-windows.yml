@@ -41,7 +41,7 @@ jobs:
           --collect-all torchvision
           --add-data "pvo/profiles;pvo/profiles"
           --add-data "assets;assets"
-          pvo/main.py
+          run.py
 
       - name: Stage release files
         shell: pwsh

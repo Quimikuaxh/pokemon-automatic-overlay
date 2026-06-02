@@ -28,8 +28,8 @@ Dos conjuntos de sprites distintos:
 
 - Python 3.10+
 - Dependencias: `pip install -r requirements.txt`
-  (EasyOCR arrastra `torch`/`torchvision`; la primera ejecución descarga modelos).
-- Para captura por título de ventana (opcional): `pip install pygetwindow`.
+  (EasyOCR arrastra `torch`/`torchvision`; la primera ejecución descarga modelos.
+  Incluye `PyGetWindow` para localizar la ventana del emulador por título.)
 
 ## Configuración
 
@@ -37,9 +37,31 @@ Dos conjuntos de sprites distintos:
    - `api_base`: URL del backend de claude-test.
    - `ingest_token`: cópialo desde la pestaña **Stream** de claude-test.
    - `profile`: nombre de un perfil en `pvo/profiles/`.
-2. Crea/ajusta el **perfil de juego** (`pvo/profiles/<nombre>.yaml`): regiones de los
-   6 slots, template del menú, idioma OCR. Usa `gba_emerald.yaml` como plantilla.
-   **Las coordenadas son específicas de tu ventana/render** y hay que calibrarlas.
+2. Crea el **perfil de juego** con el asistente de calibración (ver abajo) en vez de
+   medir píxeles a mano.
+
+## Calibrar un juego (asistente)
+
+Cada juego/generación necesita su perfil **una vez** (el layout del menú difiere). El
+asistente lo genera a base de clics y **detecta solo el área de juego** (recorta el
+cromo del emulador); las coordenadas se guardan en resolución de referencia, así que
+son **independientes del tamaño de ventana/zoom**.
+
+```bash
+# abre el menú de equipo en el emulador, y luego:
+python -m pvo.main --calibrate gba_emerald --window "mGBA" --aspect 1.5
+```
+
+Se abre una ventana con la captura ya recortada y normalizada. Dibuja un rectángulo
+sobre cada **icono** (6), cada **mote** (6, o `n` si el juego no lo muestra) y una
+**zona fija del menú** (firma para el detector). El asistente escribe
+`pvo/profiles/gba_emerald.yaml` y el template `assets/templates/gba_emerald/party_menu.png`.
+
+Flags útiles: `--region x,y,w,h` (en vez de `--window`), `--res WxH` (resolución de
+referencia, por defecto `240x160`), `--viewport x,y,w,h` (si la detección automática
+falla), `--lang es`.
+
+Lo único que queda manual es generar los **embeddings** de especie (siguiente paso).
 
 ## Generar el set de referencia de especies
 

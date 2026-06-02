@@ -45,6 +45,8 @@ class CaptureProfile:
     window_title_match: Optional[str]
     region: Optional[Region]
     fps: float
+    viewport: object = "auto"          # "auto" (detección) o Region explícita
+    aspect_ratio: Optional[float] = None  # ancho/alto del sistema (p. ej. 1.5 GBA)
 
 
 @dataclass(frozen=True)
@@ -88,10 +90,18 @@ class GameProfile:
             raise ValueError("'reference_resolution' debe ser [w, h] enteros > 0")
 
         cap = d.get("capture") or {}
+        vp_raw = cap.get("viewport", "auto")
+        if vp_raw == "auto":
+            viewport: object = "auto"
+        else:
+            viewport = _as_region(vp_raw, "capture.viewport")
+        aspect = cap.get("aspect_ratio")
         capture = CaptureProfile(
             window_title_match=cap.get("window_title_match"),
             region=_as_region(cap["region"], "capture.region") if cap.get("region") else None,
             fps=float(cap.get("fps", 3)),
+            viewport=viewport,
+            aspect_ratio=float(aspect) if aspect is not None else None,
         )
         if capture.window_title_match is None and capture.region is None:
             raise ValueError("capture: define 'window_title_match' o 'region'")
