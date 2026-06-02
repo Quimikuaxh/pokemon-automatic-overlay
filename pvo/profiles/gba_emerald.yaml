@@ -1,0 +1,33 @@
+# Perfil de EJEMPLO (GBA / Pokémon Esmeralda).
+# Las coordenadas/umbrales son placeholders: deben ajustarse a TU ventana y render.
+# Las regiones son [x, y, w, h] en la resolución de referencia de abajo.
+
+profile: gba_emerald
+reference_resolution: [240, 160]   # resolución nativa GBA
+
+capture:
+  window_title_match: "mGBA"       # o usa 'region: [x, y, w, h]' para una zona fija
+  fps: 3
+
+menu_detector:
+  template: ../../assets/templates/gba_emerald/party_menu.png
+  region: [0, 0, 240, 160]         # zona donde buscar el template del menú
+  min_confidence: 0.85
+  stable_frames: 3
+
+# 6 slots del menú de equipo (coordenadas a calibrar).
+slots:
+  - { icon_region: [8, 16, 32, 32],  text_region: [48, 22, 96, 16] }
+  - { icon_region: [128, 8, 32, 32], text_region: [168, 14, 64, 16] }
+  - { icon_region: [128, 40, 32, 32], text_region: [168, 46, 64, 16] }
+  - { icon_region: [128, 72, 32, 32], text_region: [168, 78, 64, 16] }
+  - { icon_region: [128, 104, 32, 32], text_region: [168, 110, 64, 16] }
+  - { icon_region: [128, 136, 32, 32], text_region: [168, 142, 64, 16] }
+
+species:
+  embeddings: ../../assets/icons/gba_emerald/embeddings.npz
+  min_similarity: 0.85
+
+ocr:
+  engine: easyocr
+  lang: es

@@ -1,0 +1,10 @@
+# App local de visión — dependencias de runtime
+numpy>=1.26
+opencv-python>=4.9
+mss>=9.0
+PyYAML>=6.0
+requests>=2.31
+# OCR neural (robusto a render HD). EasyOCR arrastra torch/torchvision.
+easyocr>=1.7
+torch>=2.2
+torchvision>=0.17

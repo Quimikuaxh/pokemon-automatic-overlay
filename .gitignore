@@ -1,0 +1,49 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.installed.cfg
+*.egg
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Caches de herramientas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+
+# --- Config local con secretos (token de ingesta) ---
+config.yaml
+
+# --- Empaquetado (PyInstaller) ---
+*.spec
+*.spec.bak
+
+# --- Recursos generados / pesados ---
+# Embeddings de referencia (se generan con tools/build_embeddings.py)
+assets/**/embeddings.npz
+# Modelos OCR descargados en caché local
+.EasyOCR/
+*.pth
+*.onnx
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- SO ---
+.DS_Store
+Thumbs.db
