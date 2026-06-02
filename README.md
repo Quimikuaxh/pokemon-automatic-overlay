@@ -79,6 +79,22 @@ pyinstaller --onefile --name poke-overlay \
 El binario queda en `dist/`. Pesa bastante por los modelos ML (trade-off de usar OCR
 neural robusto a HD). Pruébalo en una máquina sin Python.
 
+### Compilar el .exe de Windows sin tener Windows/Python
+
+PyInstaller **no** hace cross-compile desde Linux. Para obtener el `.exe` sin montar
+un entorno Windows propio, usa el workflow `.github/workflows/build-windows.yml`:
+compila en un runner `windows-latest` y sube el binario como artefacto.
+
+- Manual: pestaña **Actions → Build Windows executable → Run workflow**.
+- Por release: crea un tag `vX.Y.Z` y el `.exe` se adjunta a la release.
+
+Descarga el artefacto `poke-overlay-windows` (incluye `poke-overlay.exe` +
+`config.example.yaml`). El usuario final no necesita Python.
+
+> Los `assets/` (templates/embeddings) son específicos de tu render y **no** están en
+> el repo, así que el `.exe` de CI se construye sin ellos: colócalos junto al binario
+> y apunta tu perfil a esas rutas.
+
 ## Tests
 
 ```bash
