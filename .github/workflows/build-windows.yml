@@ -34,8 +34,10 @@ jobs:
         run: if (!(Test-Path assets)) { New-Item -ItemType Directory -Path assets | Out-Null }
 
       - name: Build with PyInstaller
+        # --onedir (no --onefile): evita re-extraer ~1-2 GB de torch a /temp en cada
+        # arranque (eso ralentizaba el PC). Se distribuye como carpeta comprimida.
         run: >
-          pyinstaller --onefile --name poke-overlay
+          pyinstaller --onedir --noconfirm --name poke-overlay
           --collect-all easyocr
           --collect-all torch
           --collect-all torchvision
@@ -46,20 +48,19 @@ jobs:
       - name: Stage release files
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path release | Out-Null
-          Copy-Item dist/poke-overlay.exe release/
-          Copy-Item config.example.yaml release/
-          Copy-Item README.md release/
+          Copy-Item config.example.yaml dist/poke-overlay/
+          Copy-Item README.md dist/poke-overlay/
+          Compress-Archive -Path dist/poke-overlay/* -DestinationPath poke-overlay-windows.zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: poke-overlay-windows
-          path: release/
+          path: poke-overlay-windows.zip
           if-no-files-found: error
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/poke-overlay.exe
+          files: poke-overlay-windows.zip

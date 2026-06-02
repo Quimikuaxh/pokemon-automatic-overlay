@@ -104,15 +104,21 @@ mantiene estático.
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --name poke-overlay \
+pyinstaller --onedir --noconfirm --name poke-overlay \
   --collect-all easyocr --collect-all torch --collect-all torchvision \
   --add-data "pvo/profiles:pvo/profiles" \
   --add-data "assets:assets" \
-  pvo/main.py
+  run.py
 ```
 
-El binario queda en `dist/`. Pesa bastante por los modelos ML (trade-off de usar OCR
-neural robusto a HD). Pruébalo en una máquina sin Python.
+> **Usa `--onedir`, no `--onefile`.** Con `--onefile` el ejecutable re-extrae ~1-2 GB
+> de torch a una carpeta temporal en **cada arranque**, lo que ralentiza muchísimo el
+> PC. `--onedir` genera una carpeta (`dist/poke-overlay/`) que arranca rápido; se
+> distribuye comprimida. El punto de entrada debe ser **`run.py`** (no `pvo/main.py`,
+> que como script suelto rompe los imports relativos).
+
+La carpeta queda en `dist/poke-overlay/`. Pesa bastante por los modelos ML (trade-off
+de usar OCR neural robusto a HD). Pruébala en una máquina sin Python.
 
 ### Compilar el .exe de Windows sin tener Windows/Python
 
@@ -123,8 +129,9 @@ compila en un runner `windows-latest` y sube el binario como artefacto.
 - Manual: pestaña **Actions → Build Windows executable → Run workflow**.
 - Por release: crea un tag `vX.Y.Z` y el `.exe` se adjunta a la release.
 
-Descarga el artefacto `poke-overlay-windows` (incluye `poke-overlay.exe` +
-`config.example.yaml`). El usuario final no necesita Python.
+Descarga el artefacto `poke-overlay-windows` (un **.zip** con la carpeta de la app:
+`poke-overlay.exe`, `_internal/`, `config.example.yaml`). Descomprímela entera y
+ejecuta `poke-overlay.exe` desde dentro. El usuario final no necesita Python.
 
 > Los `assets/` (templates/embeddings) son específicos de tu render y **no** están en
 > el repo, así que el `.exe` de CI se construye sin ellos: colócalos junto al binario
