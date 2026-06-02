@@ -29,6 +29,7 @@ class MenuDetector:
         self._template = tpl
         self._streak = 0
         self._open = False
+        self._last_conf = 0.0
 
     def confidence(self, frame) -> float:
         """Confianza de que el menú está abierto en este frame [0..1]."""
@@ -44,7 +45,8 @@ class MenuDetector:
         """Actualiza la histéresis con un nuevo frame. Devuelve True solo en el
         frame en que el menú PASA a estar establemente abierto (flanco de subida),
         para disparar la extracción una vez por apertura."""
-        above = self.confidence(frame) >= self._cfg.min_confidence
+        self._last_conf = self.confidence(frame)
+        above = self._last_conf >= self._cfg.min_confidence
         if above:
             self._streak += 1
         else:
@@ -60,3 +62,11 @@ class MenuDetector:
     @property
     def is_open(self) -> bool:
         return self._open
+
+    @property
+    def last_confidence(self) -> float:
+        return self._last_conf
+
+    @property
+    def min_confidence(self) -> float:
+        return self._cfg.min_confidence

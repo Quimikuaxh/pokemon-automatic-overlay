@@ -71,10 +71,23 @@ def run_with_config(cfg: dict, stop_event=None) -> int:
     log.info("Pipeline listo. Vigilando el menú de equipo…")
 
     stop = stop_event or threading.Event()
+    import time
+    last_beat = 0.0
+    first = True
     try:
         while not stop.is_set():
             frame = capturer.grab()
+            if first:
+                first = False
+                log.info("Captura OK: %sx%s px. Abre el menú de equipo en el emulador.",
+                         frame.shape[1], frame.shape[0])
             opened = detector.update(frame)
+            now = time.monotonic()
+            if now - last_beat >= 2.0:
+                last_beat = now
+                log.info("vigilando… menú=%s (confianza %.2f / umbral %.2f)",
+                         "SÍ" if detector.is_open else "no",
+                         detector.last_confidence, detector.min_confidence)
             if not opened:
                 continue
             # Flanco de apertura del menú: extraer una vez.
