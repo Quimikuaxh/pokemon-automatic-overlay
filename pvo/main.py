@@ -12,6 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
+from . import paths
 from .capture import Capturer
 from .extractor import TeamExtractor
 from .menu_detector import MenuDetector
@@ -23,8 +24,6 @@ from .state import TeamState
 
 log = logging.getLogger("pvo")
 
-PROFILES_DIR = Path(__file__).parent / "profiles"
-
 
 def load_config(path: Path) -> dict:
     import yaml
@@ -33,10 +32,16 @@ def load_config(path: Path) -> dict:
 
 
 def resolve_profile(name: str) -> GameProfile:
-    candidate = PROFILES_DIR / f"{name}.yaml"
-    if not candidate.exists():
-        raise FileNotFoundError(f"Perfil no encontrado: {candidate}")
-    return load_profile(candidate)
+    # Busca primero en los perfiles del usuario (escribibles, junto al .exe) y luego
+    # en los ejemplos empaquetados.
+    for base in (paths.profiles_dir(), paths.bundled_profiles_dir()):
+        candidate = base / f"{name}.yaml"
+        if candidate.exists():
+            return load_profile(candidate)
+    raise FileNotFoundError(
+        f"Perfil '{name}' no encontrado en {paths.profiles_dir()} ni en los ejemplos. "
+        f"Créalo con el asistente de calibración."
+    )
 
 
 def build_pipeline(profile: GameProfile, cfg: dict):
@@ -162,14 +167,13 @@ def run_calibrate(args) -> int:
         viewport=_parse_region(args.viewport) if args.viewport and args.viewport != "auto" else "auto",
         aspect_ratio=args.aspect,
     )
-    assets_dir = Path(__file__).parent.parent / "assets"
     return run_calibration(
         name=args.calibrate,
         capture=capture,
         reference_resolution=_parse_res(args.res),
         lang=args.lang,
-        profiles_dir=PROFILES_DIR,
-        assets_dir=assets_dir,
+        profiles_dir=paths.profiles_dir(),
+        assets_dir=paths.assets_dir(),
     )
 
 
@@ -187,8 +191,8 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Overlay de equipo Pokémon por visión.")
     parser.add_argument(
-        "-c", "--config", default="config.yaml",
-        help="Ruta al fichero de config (por defecto: config.yaml)",
+        "-c", "--config", default=None,
+        help="Ruta al fichero de config (por defecto: config.yaml junto al ejecutable)",
     )
     parser.add_argument("--gui", action="store_true", help="Abre la interfaz gráfica.")
     parser.add_argument("--no-gui", action="store_true", help="Fuerza el modo headless (sin GUI).")
@@ -217,7 +221,8 @@ def main(argv: list[str] | None = None) -> int:
         from .gui import launch
         return launch()
 
-    return run(Path(args.config))
+    config_path = Path(args.config) if args.config else paths.config_path()
+    return run(config_path)
 
 
 if __name__ == "__main__":

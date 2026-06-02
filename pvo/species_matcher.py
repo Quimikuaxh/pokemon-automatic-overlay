@@ -54,8 +54,14 @@ class SpeciesMatcher:
         import numpy as np
 
         self._cfg: SpeciesProfile = profile.species
-        emb_path = str(profile.resolve(self._cfg.embeddings))
-        data = np.load(emb_path)
+        emb_path = profile.resolve(self._cfg.embeddings)
+        if not emb_path.exists():
+            raise FileNotFoundError(
+                f"No existe el fichero de embeddings: {emb_path}\n"
+                f"Genéralo con el botón 'Generar embeddings…' (o "
+                f"python -m pvo.tools.build_embeddings) apuntando a la carpeta de iconos."
+            )
+        data = np.load(str(emb_path))
         # npz con 'dex_ids' (int) y 'vectors' (float32, ya L2-normalizados).
         self._dex_ids = data["dex_ids"].astype(int)
         self._matrix = data["vectors"].astype("float32")  # (N, D)

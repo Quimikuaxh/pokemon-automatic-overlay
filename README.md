@@ -44,6 +44,27 @@ Al abrir el `.exe` (o `python -m pvo.main` sin argumentos) se abre una **ventana
 Para quien lo prefiera, todo sigue disponible por línea de comandos (secciones de
 abajo); la GUI no es más que un envoltorio sobre ellas.
 
+### Dónde se guardan los datos
+
+Los datos del usuario viven **junto al ejecutable** (no dentro de `_internal/`, que se
+sobrescribe al actualizar):
+
+```
+poke-overlay/            ← carpeta que descomprimes
+  poke-overlay.exe
+  _internal/             ← código y ejemplos (no tocar)
+  config.yaml            ← api_base, token, perfil
+  profiles/<juego>.yaml  ← perfiles que calibras
+  assets/
+    templates/<juego>/party_menu.png
+    icons/<juego>/        ← tus iconos NNN.png
+    icons/<juego>/embeddings.npz
+```
+
+El asistente de calibración y “Generar embeddings…” escriben aquí automáticamente, y
+el perfil apunta a estas rutas relativas. Así todo es coherente y persiste entre
+actualizaciones.
+
 ## Configuración (CLI)
 
 1. Copia `config.example.yaml` a `config.yaml` y rellena:

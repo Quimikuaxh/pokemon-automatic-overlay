@@ -27,7 +27,8 @@ slots:
   - { icon_region: [128, 136, 32, 32], text_region: [168, 142, 64, 16] }
 
 species:
-  embeddings: ../../assets/icons/gba_emerald/embeddings.npz
+  # Iconos de menú compartidos por toda la generación 3 (Bulbagarden).
+  embeddings: ../../assets/icons/gen3/embeddings.npz
   min_similarity: 0.85
 
 ocr:

@@ -17,11 +17,18 @@ import sys
 import threading
 from pathlib import Path
 
+from . import paths
 from .appconfig import list_profiles, load_app_config, save_app_config
-from .main import PROFILES_DIR, run_with_config
+from .main import run_with_config
 
-CONFIG_PATH = Path("config.yaml")
+CONFIG_PATH = paths.config_path()
 log = logging.getLogger("pvo")
+
+
+def _available_profiles() -> list[str]:
+    """Perfiles del usuario (escribibles) + ejemplos empaquetados, sin duplicados."""
+    names = set(list_profiles(paths.profiles_dir())) | set(list_profiles(paths.bundled_profiles_dir()))
+    return sorted(names)
 
 
 class _QueueLogHandler(logging.Handler):
@@ -80,7 +87,7 @@ class App:
 
         ttk.Label(frm, text="Juego (perfil):").grid(row=2, column=0, sticky="w")
         self.profile_combo = ttk.Combobox(frm, textvariable=self.profile_var, state="readonly",
-                                           values=list_profiles(PROFILES_DIR), width=30)
+                                           values=_available_profiles(), width=30)
         self.profile_combo.grid(row=2, column=1, sticky="we")
         ttk.Button(frm, text="↻", width=3, command=self._refresh_profiles).grid(row=2, column=2, sticky="w")
         frm.columnconfigure(1, weight=1)
@@ -113,7 +120,7 @@ class App:
 
     # --- helpers ---
     def _refresh_profiles(self):
-        self.profile_combo["values"] = list_profiles(PROFILES_DIR)
+        self.profile_combo["values"] = _available_profiles()
 
     def _collect_cfg(self) -> dict:
         cfg = dict(self.cfg)
@@ -177,11 +184,14 @@ class App:
 
     def _build_embeddings(self):
         from tkinter import filedialog
-        icons = filedialog.askdirectory(title="Carpeta con iconos NNN.png")
+        icons_base = str(paths.assets_dir() / "icons")
+        icons = filedialog.askdirectory(title="Carpeta con iconos NNN.png", initialdir=icons_base)
         if not icons:
             return
+        # Por defecto, guarda dentro de la propia carpeta de iconos (que es donde el
+        # perfil calibrado espera el embeddings.npz).
         out = filedialog.asksaveasfilename(title="Guardar embeddings", defaultextension=".npz",
-                                           initialfile="embeddings.npz")
+                                           initialdir=icons, initialfile="embeddings.npz")
         if not out:
             return
         self._run_subprocess(_self_command("--build-embeddings", "--icons", icons, "--out", out))
