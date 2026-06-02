@@ -198,8 +198,13 @@ class App:
         cfg = self.cfg
 
         def target():
-            run_with_config(cfg, self.stop_event)
-            self.root.after(0, self._on_stopped)
+            try:
+                run_with_config(cfg, self.stop_event)
+            except Exception:  # noqa: BLE001
+                log.exception("El pipeline se detuvo por un error")
+            finally:
+                # Garantiza que los botones vuelvan a su sitio aunque el hilo falle.
+                self.root.after(0, self._on_stopped)
 
         self.worker = threading.Thread(target=target, daemon=True)
         self.worker.start()
