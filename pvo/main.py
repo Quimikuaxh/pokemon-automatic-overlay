@@ -54,29 +54,25 @@ def build_pipeline(profile: GameProfile, cfg: dict):
     return capturer, detector, extractor, state, publisher
 
 
-def run(config_path: Path) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    if not config_path.exists():
-        log.error(
-            "No se encontró el fichero de config: %s\n"
-            "Copia 'config.example.yaml' a '%s' y rellena api_base/ingest_token/profile.",
-            config_path, config_path.name,
-        )
+def run_with_config(cfg: dict, stop_event=None) -> int:
+    """Arranca el pipeline con una config ya cargada. Se detiene cuando `stop_event`
+    se activa (o con Ctrl+C). Usado tanto por la CLI como por la GUI."""
+    import threading
+
+    missing = [k for k in ("api_base", "ingest_token", "profile") if not cfg.get(k)]
+    if missing:
+        log.error("Faltan campos en la config: %s", ", ".join(missing))
         return 2
-    cfg = load_config(config_path)
-    for key in ("api_base", "ingest_token", "profile"):
-        if not cfg.get(key):
-            log.error("Falta '%s' en %s", key, config_path)
-            return 2
 
     profile = resolve_profile(cfg["profile"])
     log.info("Perfil cargado: %s (%sx%s)", profile.name, *profile.reference_resolution)
 
     capturer, detector, extractor, state, publisher = build_pipeline(profile, cfg)
-    log.info("Pipeline listo. Vigilando el menú de equipo… (Ctrl+C para salir)")
+    log.info("Pipeline listo. Vigilando el menú de equipo…")
 
+    stop = stop_event or threading.Event()
     try:
-        while True:
+        while not stop.is_set():
             frame = capturer.grab()
             opened = detector.update(frame)
             if not opened:
@@ -90,8 +86,22 @@ def run(config_path: Path) -> int:
             else:
                 log.debug("Lectura no válida o sin cambios; se mantiene el cache.")
     except KeyboardInterrupt:
-        log.info("Saliendo.")
-        return 0
+        pass
+    log.info("Detenido.")
+    return 0
+
+
+def run(config_path: Path) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if not config_path.exists():
+        log.error(
+            "No se encontró el fichero de config: %s\n"
+            "Copia 'config.example.yaml' a '%s' y rellena api_base/ingest_token/profile.",
+            config_path, config_path.name,
+        )
+        return 2
+    cfg = load_config(config_path)
+    return run_with_config(cfg)
 
 
 def _parse_region(text: str) -> tuple[int, int, int, int]:
@@ -132,12 +142,25 @@ def run_calibrate(args) -> int:
     )
 
 
+def run_build_embeddings(args) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if not args.icons or not args.out:
+        log.error("--build-embeddings requiere --icons <carpeta> y --out <fichero.npz>")
+        return 2
+    from .tools.build_embeddings import build
+    return build(Path(args.icons), Path(args.out))
+
+
 def main(argv: list[str] | None = None) -> int:
+    raw_args = list(sys.argv[1:]) if argv is None else list(argv)
+
     parser = argparse.ArgumentParser(description="Overlay de equipo Pokémon por visión.")
     parser.add_argument(
         "-c", "--config", default="config.yaml",
         help="Ruta al fichero de config (por defecto: config.yaml)",
     )
+    parser.add_argument("--gui", action="store_true", help="Abre la interfaz gráfica.")
+    parser.add_argument("--no-gui", action="store_true", help="Fuerza el modo headless (sin GUI).")
     parser.add_argument(
         "--calibrate", metavar="NAME",
         help="Lanza el asistente de calibración y genera el perfil NAME.",
@@ -147,11 +170,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--viewport", default="auto", help="[calibración] 'auto' o 'x,y,w,h' del área de juego")
     parser.add_argument("--aspect", type=float, help="[calibración] relación de aspecto del sistema (p. ej. 1.5)")
     parser.add_argument("--res", default="240x160", help="[calibración] resolución de referencia 'WxH'")
-    parser.add_argument("--lang", default="es", help="[calibración] idioma del OCR")
+    parser.add_argument("--lang", default="es", help="[calibración/embeddings] idioma del OCR")
+    parser.add_argument("--build-embeddings", action="store_true", help="Genera embeddings.npz")
+    parser.add_argument("--icons", help="[embeddings] carpeta con iconos NNN.png")
+    parser.add_argument("--out", help="[embeddings] ruta de salida del .npz")
     args = parser.parse_args(argv)
 
     if args.calibrate:
         return run_calibrate(args)
+    if args.build_embeddings:
+        return run_build_embeddings(args)
+
+    # Sin argumentos (p. ej. doble clic en el .exe) → interfaz gráfica.
+    if args.gui or (not raw_args and not args.no_gui):
+        from .gui import launch
+        return launch()
+
     return run(Path(args.config))
 
 

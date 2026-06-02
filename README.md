@@ -31,7 +31,20 @@ Dos conjuntos de sprites distintos:
   (EasyOCR arrastra `torch`/`torchvision`; la primera ejecución descarga modelos.
   Incluye `PyGetWindow` para localizar la ventana del emulador por título.)
 
-## Configuración
+## Uso (interfaz gráfica)
+
+Al abrir el `.exe` (o `python -m pvo.main` sin argumentos) se abre una **ventana**:
+
+- Campos **API base** e **Ingest token** (se guardan en `config.yaml`).
+- Desplegable **Juego (perfil)** con los perfiles disponibles.
+- **Calibrar nuevo juego…**: pide nombre + título de ventana y lanza el asistente.
+- **Generar embeddings…**: elige la carpeta de iconos y genera el `.npz`.
+- **▶ Arrancar / ■ Parar** y un **panel de log** con lo que va detectando.
+
+Para quien lo prefiera, todo sigue disponible por línea de comandos (secciones de
+abajo); la GUI no es más que un envoltorio sobre ellas.
+
+## Configuración (CLI)
 
 1. Copia `config.example.yaml` a `config.yaml` y rellena:
    - `api_base`: URL del backend de claude-test.

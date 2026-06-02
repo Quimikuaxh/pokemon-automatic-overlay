@@ -75,6 +75,26 @@ class _RectPicker:
                     return unscale_region(self._cur, scale)
 
 
+def _wait_for_capture(cap, win: str, ref_w: int, ref_h: int, scale: float):
+    """Muestra la captura en vivo. Devuelve el frame congelado al pulsar ESPACIO,
+    o None si se pulsa ESC."""
+    import cv2
+
+    while True:
+        frame = cap.grab()
+        disp = cv2.resize(frame, (ref_w * scale, ref_h * scale), interpolation=cv2.INTER_NEAREST)
+        cv2.putText(disp, "Abre el MENU de equipo", (8, 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1, cv2.LINE_AA)
+        cv2.putText(disp, "ESPACIO=capturar   ESC=abortar", (8, 44),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 220, 255), 1, cv2.LINE_AA)
+        cv2.imshow(win, disp)
+        key = cv2.waitKey(30) & 0xFF
+        if key == 27:       # ESC
+            return None
+        if key == 32:       # ESPACIO
+            return frame
+
+
 def run_calibration(
     name: str,
     capture: CaptureProfile,
@@ -86,17 +106,20 @@ def run_calibration(
     import cv2
     import yaml
 
-    print("Abre el MENÚ DE EQUIPO en el emulador. Pulsa cualquier tecla aquí cuando esté visible…")
-    input()
-
     cap = Capturer(capture, reference_resolution)
-    frame = cap.grab()  # viewport ya recortado + normalizado a ref-res
     ref_w, ref_h = reference_resolution
     scale = max(1, 720 // ref_h)
-    canvas = cv2.resize(frame, (ref_w * scale, ref_h * scale), interpolation=cv2.INTER_NEAREST)
 
     win = "Calibración — pokemon-vision-overlay"
     cv2.namedWindow(win, cv2.WINDOW_AUTOSIZE)
+
+    # Vista en vivo hasta que el usuario congela el frame con ESPACIO.
+    frame = _wait_for_capture(cap, win, ref_w, ref_h, scale)
+    if frame is None:
+        cv2.destroyAllWindows()
+        print("Calibración abortada; no se ha escrito nada.")
+        return 1
+    canvas = cv2.resize(frame, (ref_w * scale, ref_h * scale), interpolation=cv2.INTER_NEAREST)
     picker = _RectPicker(canvas, win)
 
     try:
