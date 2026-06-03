@@ -93,8 +93,11 @@ class GameProfile:
         vp_raw = cap.get("viewport", "auto")
         if vp_raw == "auto":
             viewport: object = "auto"
+        elif isinstance(vp_raw, (list, tuple)) and len(vp_raw) == 4:
+            # 4 números: fracciones de la ventana (0..1) o píxeles absolutos.
+            viewport = tuple(float(v) for v in vp_raw)
         else:
-            viewport = _as_region(vp_raw, "capture.viewport")
+            raise ValueError("capture.viewport debe ser 'auto' o [x, y, w, h]")
         aspect = cap.get("aspect_ratio")
         capture = CaptureProfile(
             window_title_match=cap.get("window_title_match"),

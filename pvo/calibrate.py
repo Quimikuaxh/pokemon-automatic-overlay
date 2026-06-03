@@ -24,6 +24,9 @@ from .geometry import Region, clamp_region, unscale_region
 from .profiles.schema import CaptureProfile
 
 
+_AUTO = object()  # centinela: "detectar el área de juego automáticamente"
+
+
 def _draw_text(img, text, org, color, scale=0.6):
     """Texto con grueso contorno negro para que sea legible sobre cualquier fondo."""
     import cv2
@@ -55,13 +58,15 @@ class _RectPicker:
         x1, y1 = b
         return (min(x0, x1), min(y0, y1), abs(x1 - x0), abs(y1 - y0))
 
-    def pick(self, label: str, scale: float, allow_none: bool) -> Optional[Region]:
-        """Devuelve la región elegida en coords de la resolución de referencia, o
-        None si se marca como inexistente. Lanza KeyboardInterrupt si se aborta."""
+    def pick(self, label: str, scale: float, allow_none: bool, allow_auto: bool = False):
+        """Devuelve la región elegida (en coords reales, deshecho el `scale`), `None`
+        si se marca como inexistente, o `_AUTO` si se elige automático. Lanza
+        KeyboardInterrupt si se aborta."""
         import cv2
 
         cv2.setMouseCallback(self._win, self._on_mouse)
-        hint = "ENTER=ok  'r'=repetir  ESC=abortar" + ("  'n'=ninguno" if allow_none else "")
+        extra = ("  'n'=ninguno" if allow_none else "") + ("  'a'=auto" if allow_auto else "")
+        hint = "ENTER=ok  'r'=repetir  ESC=abortar" + extra
         while True:
             img = self._base.copy()
             _draw_text(img, label, (8, 24), (0, 255, 255), 0.6)   # amarillo
@@ -77,27 +82,52 @@ class _RectPicker:
                 self._cur = None
             if allow_none and key in (ord("n"), ord("N")):
                 return None
+            if allow_auto and key in (ord("a"), ord("A")):
+                return _AUTO
             if key in (13, 10):  # ENTER
                 if self._cur and self._cur[2] > 1 and self._cur[3] > 1:
                     return unscale_region(self._cur, scale)
 
 
-def _wait_for_capture(cap, win: str, ref_w: int, ref_h: int, scale: float):
-    """Muestra la captura en vivo. Devuelve el frame congelado al pulsar ESPACIO,
-    o None si se pulsa ESC."""
+def _fit_scale(w: int, h: int, max_w: int = 1000, max_h: int = 700) -> float:
+    """Escala para que (w,h) quepa en (max_w,max_h) sin pasarse de 1x."""
+    return min(1.0, max_w / w, max_h / h)
+
+
+def _wait_for_raw(cap, win: str):  # noqa: D401
+    """Muestra la VENTANA completa del emulador en vivo (ambas pantallas si las hay).
+    Devuelve el frame crudo congelado al pulsar ESPACIO, o None si ESC."""
     import cv2
 
     while True:
-        frame = cap.grab()
-        disp = cv2.resize(frame, (ref_w * scale, ref_h * scale), interpolation=cv2.INTER_NEAREST)
+        raw = cap._grab_window()  # ventana entera, sin recortar viewport
+        s = _fit_scale(raw.shape[1], raw.shape[0])
+        disp = cv2.resize(raw, (int(raw.shape[1] * s), int(raw.shape[0] * s)), interpolation=cv2.INTER_AREA)
         _draw_text(disp, "Abre el MENU de equipo", (8, 24), (0, 255, 255), 0.6)
         _draw_text(disp, "ESPACIO=capturar   ESC=abortar", (8, 46), (255, 255, 255), 0.5)
         cv2.imshow(win, disp)
         key = cv2.waitKey(30) & 0xFF
-        if key == 27:       # ESC
+        if key == 27:
             return None
-        if key == 32:       # ESPACIO
-            return frame
+        if key == 32:
+            return raw
+
+
+def _pick_viewport(raw, win: str):
+    """Deja dibujar la PANTALLA del juego que contiene el menú (en doble pantalla,
+    p. ej. NDS/3DS). Devuelve fracciones (fx,fy,fw,fh) de la ventana, o None si se
+    elige 'a' (auto-detección)."""
+    import cv2
+
+    H, W = raw.shape[:2]
+    s = _fit_scale(W, H)
+    canvas = cv2.resize(raw, (int(W * s), int(H * s)), interpolation=cv2.INTER_AREA)
+    picker = _RectPicker(canvas, win)
+    r = picker.pick("Dibuja la PANTALLA del menú de equipo", s, allow_none=False, allow_auto=True)
+    if r is _AUTO:
+        return None
+    x, y, w, h = r  # en píxeles de la ventana (deshecho el escalado de display)
+    return (x / W, y / H, w / W, h / H)
 
 
 def run_calibration(
@@ -119,12 +149,30 @@ def run_calibration(
     win = "Calibración — pokemon-vision-overlay"
     cv2.namedWindow(win, cv2.WINDOW_AUTOSIZE)
 
-    # Vista en vivo hasta que el usuario congela el frame con ESPACIO.
-    frame = _wait_for_capture(cap, win, ref_w, ref_h, scale)
-    if frame is None:
+    # 1) Captura la VENTANA completa (ambas pantallas si las hay) y, si es doble
+    #    pantalla, deja elegir cuál contiene el menú; si no, 'a' = auto.
+    raw = _wait_for_raw(cap, win)
+    if raw is None:
         cv2.destroyAllWindows()
         print("Calibración abortada; no se ha escrito nada.")
         return 1
+    try:
+        vp_frac = _pick_viewport(raw, win)
+    except KeyboardInterrupt:
+        cv2.destroyAllWindows()
+        print("Calibración abortada; no se ha escrito nada.")
+        return 1
+
+    # 2) Construye el frame de trabajo: recorta el viewport y normaliza a ref-res.
+    H, W = raw.shape[:2]
+    if vp_frac:
+        fx, fy, fw, fh = vp_frac
+        vx, vy, vw, vh = int(fx * W), int(fy * H), int(fw * W), int(fh * H)
+    else:
+        from .viewport import detect_viewport
+        vx, vy, vw, vh = detect_viewport(raw, capture.aspect_ratio)
+    crop = raw[vy:vy + vh, vx:vx + vw]
+    frame = cv2.resize(crop, (ref_w, ref_h), interpolation=cv2.INTER_AREA)
     canvas = cv2.resize(frame, (ref_w * scale, ref_h * scale), interpolation=cv2.INTER_NEAREST)
     picker = _RectPicker(canvas, win)
 
@@ -162,10 +210,13 @@ def run_calibration(
     icons_key = f"gen{species_gen}" if species_gen else name
     emb_path = assets_dir / "icons" / icons_key / "embeddings.npz"
 
+    cap_dict = _capture_to_dict(capture)
+    cap_dict["viewport"] = [round(v, 4) for v in vp_frac] if vp_frac else "auto"
+
     data = {
         "profile": name,
         "reference_resolution": [ref_w, ref_h],
-        "capture": _capture_to_dict(capture),
+        "capture": cap_dict,
         "menu_detector": {
             "template": rel(tpl_path),
             "region": [0, 0, ref_w, ref_h],

@@ -47,6 +47,16 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(ValueError):
             GameProfile.from_dict(d)
 
+    def test_viewport_auto_default(self):
+        p = GameProfile.from_dict(valid_dict())
+        self.assertEqual(p.capture.viewport, "auto")
+
+    def test_viewport_fractional(self):
+        d = valid_dict()
+        d["capture"]["viewport"] = [0, 0.5, 1, 0.5]  # mitad inferior (NDS)
+        p = GameProfile.from_dict(d)
+        self.assertEqual(p.capture.viewport, (0.0, 0.5, 1.0, 0.5))
+
     def test_text_region_optional(self):
         d = valid_dict()
         d["slots"] = [{"icon_region": [0, 0, 32, 32]}] * 6

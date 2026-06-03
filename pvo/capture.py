@@ -62,10 +62,17 @@ class Capturer:
 
     def _viewport(self, window_frame):
         """Devuelve la región (x,y,w,h) del área de juego dentro de `window_frame`."""
-        if self._cfg.viewport == "auto":
+        vp = self._cfg.viewport
+        if vp == "auto":
             from .viewport import detect_viewport
             return detect_viewport(window_frame, self._cfg.aspect_ratio)
-        return self._cfg.viewport  # Region explícita del perfil
+        h, w = window_frame.shape[:2]
+        # Fracciones de la ventana (todos 0..1) → robusto a cambios de tamaño;
+        # si no, se interpretan como píxeles absolutos.
+        if all(0.0 <= float(v) <= 1.0 for v in vp):
+            x, y, fw, fh = vp
+            return (int(x * w), int(y * h), int(fw * w), int(fh * h))
+        return tuple(int(v) for v in vp)
 
     def grab(self):
         """Captura un frame, recorta el viewport del juego y lo normaliza a
