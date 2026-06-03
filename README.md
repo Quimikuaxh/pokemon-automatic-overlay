@@ -44,26 +44,34 @@ Al abrir el `.exe` (o `python -m pvo.main` sin argumentos) se abre una **ventana
 Para quien lo prefiera, todo sigue disponible por línea de comandos (secciones de
 abajo); la GUI no es más que un envoltorio sobre ellas.
 
-### Dónde se guardan los datos
+### Dónde se guardan los datos (persisten entre actualizaciones)
 
-Los datos del usuario viven **junto al ejecutable** (no dentro de `_internal/`, que se
-sobrescribe al actualizar):
+Los datos del usuario NO viven dentro de la app, sino en la **carpeta de datos del
+sistema**, así que **sobrescribir/actualizar la app no los borra**:
+
+- Windows: `%APPDATA%\poke-overlay\`
+- Linux: `~/.local/share/poke-overlay/`
+- macOS: `~/Library/Application Support/poke-overlay/`
 
 ```
-poke-overlay/            ← carpeta que descomprimes
-  poke-overlay.exe
-  _internal/             ← código y ejemplos (no tocar)
-  config.yaml            ← api_base, token, perfil
-  profiles/<juego>.yaml  ← perfiles que calibras
+poke-overlay/                 (en %APPDATA%, etc.)
+  config.yaml                 ← api_base, token, perfil
+  profiles/<juego>.yaml       ← perfiles que calibras
   assets/
     templates/<juego>/party_menu.png
-    icons/<juego>/        ← tus iconos NNN.png
-    icons/<juego>/embeddings.npz
+    icons/gen3/ … gen9/       ← galerías de iconos incluidas (+ embeddings.npz)
 ```
 
-El asistente de calibración y “Generar embeddings…” escriben aquí automáticamente, y
-el perfil apunta a estas rutas relativas. Así todo es coherente y persiste entre
-actualizaciones.
+Al primer arranque, la app **siembra** ahí las galerías de iconos y los perfiles de
+ejemplo que trae empaquetados (sin pisar lo que ya tengas).
+
+### Galerías de iconos incluidas
+
+La app trae galerías de menu sprites por generación (gen 3–9, fuente Bulbagarden) con
+sus `embeddings.npz` ya generados. Al **calibrar**, indica la **generación** del juego
+y el perfil usará esa galería directamente: no necesitas reunir iconos ni generar
+embeddings a mano. Solo si juegas con un render muy distinto (texturas HD que cambian
+los iconos) tendrá sentido rehacer la galería con tus propias capturas.
 
 ## Configuración (CLI)
 

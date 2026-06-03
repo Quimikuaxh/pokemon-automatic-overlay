@@ -102,6 +102,7 @@ def run_calibration(
     lang: str,
     profiles_dir: Path,
     assets_dir: Path,
+    species_gen: int | None = None,
 ) -> int:
     import cv2
     import yaml
@@ -151,7 +152,10 @@ def run_calibration(
         import os
         return os.path.relpath(p, profiles_dir).replace("\\", "/")
 
-    emb_path = assets_dir / "icons" / name / "embeddings.npz"
+    # Si se indica generación, se reutiliza la galería compartida gen<N> (con sus
+    # embeddings ya incluidos); si no, una carpeta propia por nombre de perfil.
+    icons_key = f"gen{species_gen}" if species_gen else name
+    emb_path = assets_dir / "icons" / icons_key / "embeddings.npz"
 
     data = {
         "profile": name,

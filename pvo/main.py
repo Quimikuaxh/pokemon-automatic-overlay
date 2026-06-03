@@ -129,6 +129,7 @@ def run_with_config(cfg: dict, stop_event=None) -> int:
 
 def run(config_path: Path) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    paths.ensure_seeded()
     if not config_path.exists():
         log.error(
             "No se encontró el fichero de config: %s\n"
@@ -174,6 +175,7 @@ def run_calibrate(args) -> int:
         lang=args.lang,
         profiles_dir=paths.profiles_dir(),
         assets_dir=paths.assets_dir(),
+        species_gen=args.gen,
     )
 
 
@@ -204,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--region", help="[calibración] región de captura 'x,y,w,h' (alternativa a --window)")
     parser.add_argument("--viewport", default="auto", help="[calibración] 'auto' o 'x,y,w,h' del área de juego")
     parser.add_argument("--aspect", type=float, help="[calibración] relación de aspecto del sistema (p. ej. 1.5)")
+    parser.add_argument("--gen", type=int, help="[calibración] generación de sprites (3-9) → usa la galería compartida gen<N>")
     parser.add_argument("--res", default="240x160", help="[calibración] resolución de referencia 'WxH'")
     parser.add_argument("--lang", default="es", help="[calibración/embeddings] idioma del OCR")
     parser.add_argument("--build-embeddings", action="store_true", help="Genera embeddings.npz")

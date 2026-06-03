@@ -177,9 +177,17 @@ class App:
             messagebox.showinfo("Calibrar", "Necesito el título de la ventana para localizar el emulador.")
             return
         aspect = simpledialog.askstring("Calibrar", "Relación de aspecto (opcional, p. ej. 1.5 para GBA):", parent=self.root)
+        gen = simpledialog.askstring(
+            "Calibrar",
+            "Generación de sprites (3–9) para reconocer especies.\n"
+            "Usa la galería ya incluida gen<N> (recomendado). Vacío = carpeta propia.",
+            parent=self.root,
+        )
         cmd = _self_command("--calibrate", name, "--window", window)
         if aspect:
             cmd += ["--aspect", aspect]
+        if gen and gen.strip().isdigit():
+            cmd += ["--gen", gen.strip()]
         self._run_subprocess(cmd, on_done=self._refresh_profiles)
 
     def _build_embeddings(self):
@@ -236,6 +244,7 @@ class App:
 def launch() -> int:
     import tkinter as tk
 
+    paths.ensure_seeded()  # copia galerías/ejemplos a la carpeta del usuario (1ª vez)
     root = tk.Tk()
     App(root)
     root.mainloop()
