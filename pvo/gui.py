@@ -96,6 +96,7 @@ class App:
         btns.pack(fill="x", **pad)
         ttk.Button(btns, text="Guardar config", command=self._save).pack(side="left", padx=4)
         ttk.Button(btns, text="Calibrar nuevo juego…", command=self._calibrate).pack(side="left", padx=4)
+        ttk.Button(btns, text="Guardar captura", command=self._save_capture).pack(side="left", padx=4)
 
         run = ttk.Frame(self.root)
         run.pack(fill="x", **pad)
@@ -147,6 +148,36 @@ class App:
         except queue.Empty:
             pass
         self.root.after(150, self._drain_log)
+
+    def _save_capture(self):
+        """Guarda el frame normalizado (240x160) + los recortes por slot, para poder
+        revisar/medir el encuadre."""
+        from tkinter import messagebox
+        cfg = self._collect_cfg()
+        self.cfg = cfg
+        if not cfg.get("profile"):
+            messagebox.showinfo("Guardar captura", "Elige antes un perfil.")
+            return
+        try:
+            import cv2
+            from .capture import Capturer
+            from .main import resolve_profile
+            profile = resolve_profile(cfg["profile"])
+            frame = Capturer(profile.capture, profile.reference_resolution).grab()
+        except Exception as e:  # noqa: BLE001
+            log.error("No se pudo capturar (¿emulador y menú abiertos?): %s", e)
+            return
+        out_dir = paths.data_dir() / "debug"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(out_dir / "captura.png"), frame)
+        # Versión ampliada 4x para verla mejor.
+        big = cv2.resize(frame, (frame.shape[1] * 4, frame.shape[0] * 4), interpolation=cv2.INTER_NEAREST)
+        cv2.imwrite(str(out_dir / "captura_x4.png"), big)
+        for i, slot in enumerate(profile.slots):
+            x, y, w, h = slot.icon_region
+            cv2.imwrite(str(out_dir / f"slot{i + 1}.png"), frame[y:y + h, x:x + w])
+        log.info("Captura guardada en: %s", out_dir)
+        log.info("  (captura.png = 240x160; captura_x4.png = ampliada; slotN.png = recortes)")
 
     # --- subproceso (calibrar) ---
     def _run_subprocess(self, cmd: list[str], on_done=None):
