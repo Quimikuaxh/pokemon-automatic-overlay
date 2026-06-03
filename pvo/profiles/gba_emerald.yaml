@@ -29,7 +29,7 @@ slots:
 species:
   # Plantillas de iconos de menú de la generación 3 (Bulbagarden).
   gallery: ../../assets/icons/gen3/templates.npz
-  min_similarity: 0.6
+  min_similarity: 0.5
 
 ocr:
   engine: easyocr

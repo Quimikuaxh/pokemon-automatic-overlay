@@ -139,7 +139,7 @@ class GameProfile:
             raise ValueError("species: falta 'gallery'")
         species = SpeciesProfile(
             gallery=str(gallery),
-            min_similarity=float(sp.get("min_similarity", 0.6)),
+            min_similarity=float(sp.get("min_similarity", 0.5)),
         )
 
         oc = d.get("ocr") or {}

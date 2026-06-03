@@ -227,7 +227,7 @@ def run_calibration(
             {"icon_region": list(icons[i]), **({"text_region": list(texts[i])} if texts[i] else {})}
             for i in range(6)
         ],
-        "species": {"gallery": rel(gallery_path), "min_similarity": 0.6},
+        "species": {"gallery": rel(gallery_path), "min_similarity": 0.5},
         "ocr": {"engine": "easyocr", "lang": lang},
     }
 
