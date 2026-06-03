@@ -97,6 +97,7 @@ class App:
         ttk.Button(btns, text="Guardar config", command=self._save).pack(side="left", padx=4)
         ttk.Button(btns, text="Calibrar nuevo juego…", command=self._calibrate).pack(side="left", padx=4)
         ttk.Button(btns, text="Generar embeddings…", command=self._build_embeddings).pack(side="left", padx=4)
+        ttk.Button(btns, text="Aprender equipo…", command=self._learn_team).pack(side="left", padx=4)
 
         run = ttk.Frame(self.root)
         run.pack(fill="x", **pad)
@@ -209,6 +210,87 @@ class App:
         if not out:
             return
         self._run_subprocess(_self_command("--build-embeddings", "--icons", icons, "--out", out))
+
+    # --- aprender equipo (galería personal) ---
+    def _learn_team(self):
+        from tkinter import messagebox
+        cfg = self._collect_cfg()
+        self.cfg = cfg
+        if not cfg.get("profile"):
+            messagebox.showinfo("Aprender equipo", "Elige antes un perfil (calibrado).")
+            return
+        try:
+            from .main import resolve_profile
+            profile = resolve_profile(cfg["profile"])
+        except Exception as e:  # noqa: BLE001
+            log.error("No se pudo cargar el perfil '%s': %s", cfg["profile"], e)
+            return
+        try:
+            import cv2
+            import tempfile
+            from .capture import Capturer
+            frame = Capturer(profile.capture, profile.reference_resolution).grab()
+        except Exception as e:  # noqa: BLE001
+            log.error("No se pudo capturar (¿emulador abierto y menú de equipo visible?): %s", e)
+            return
+
+        tmp = Path(tempfile.mkdtemp(prefix="pvo_learn_"))
+        crops, thumbs = {}, {}
+        for i, slot in enumerate(profile.slots):
+            x, y, w, h = slot.icon_region
+            crops[i] = frame[y:y + h, x:x + w]
+            tp = tmp / f"slot{i}.png"
+            cv2.imwrite(str(tp), crops[i])
+            thumbs[i] = str(tp)
+        self._open_learn_dialog(profile.name, crops, thumbs)
+
+    def _open_learn_dialog(self, profile_name: str, crops: dict, thumbs: dict):
+        tk, ttk = self.tk, self.ttk
+        top = tk.Toplevel(self.root)
+        top.title("Aprender equipo")
+        ttk.Label(top, justify="left", text=(
+            "Con el menú de equipo abierto, escribe el nombre (en inglés) de cada\n"
+            "Pokémon. Deja en blanco los huecos vacíos.")).pack(padx=10, pady=8)
+        rows = ttk.Frame(top)
+        rows.pack(padx=10, pady=4)
+        entries, images = {}, []
+        for i in range(6):
+            fr = ttk.Frame(rows)
+            fr.grid(row=i, column=0, sticky="w", pady=2)
+            try:
+                img = tk.PhotoImage(file=thumbs[i])
+                factor = max(1, 96 // max(1, img.height()))
+                if factor > 1:
+                    img = img.zoom(factor)
+                images.append(img)
+                tk.Label(fr, image=img).pack(side="left", padx=6)
+            except Exception:  # noqa: BLE001
+                ttk.Label(fr, text=f"slot {i + 1}").pack(side="left", padx=6)
+            var = tk.StringVar()
+            ttk.Entry(fr, textvariable=var, width=22).pack(side="left", padx=6)
+            entries[i] = var
+        top._images = images  # evita que el GC borre las miniaturas
+
+        def save():
+            slot_names = {i: entries[i].get() for i in range(6)}
+            top.destroy()
+            log.info("Aprendiendo equipo… (calculando huellas)")
+
+            def work():
+                try:
+                    from . import learn
+                    msg = learn.learn_from_crops(profile_name, slot_names, crops)
+                    log.info(msg)
+                    self.root.after(0, self._refresh_profiles)
+                except Exception:  # noqa: BLE001
+                    log.exception("Fallo aprendiendo el equipo")
+
+            threading.Thread(target=work, daemon=True).start()
+
+        btns = ttk.Frame(top)
+        btns.pack(pady=8)
+        ttk.Button(btns, text="Guardar", command=save).pack(side="left", padx=6)
+        ttk.Button(btns, text="Cancelar", command=top.destroy).pack(side="left", padx=6)
 
     # --- arrancar / parar ---
     def _start(self):

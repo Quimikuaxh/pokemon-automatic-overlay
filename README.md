@@ -69,9 +69,17 @@ ejemplo que trae empaquetados (sin pisar lo que ya tengas).
 
 La app trae galerías de menu sprites por generación (gen 3–9, fuente Bulbagarden) con
 sus `embeddings.npz` ya generados. Al **calibrar**, indica la **generación** del juego
-y el perfil usará esa galería directamente: no necesitas reunir iconos ni generar
-embeddings a mano. Solo si juegas con un render muy distinto (texturas HD que cambian
-los iconos) tendrá sentido rehacer la galería con tus propias capturas.
+y el perfil usará esa galería directamente.
+
+> **Aprender mi equipo (recomendado para fiabilidad).** Los sprites genéricos llevan
+> fondo plano; en el juego el icono tiene detrás el **fondo del menú**, lo que baja
+> mucho la precisión. El botón **"Aprender equipo…"** captura los iconos de **tu**
+> partida (mismo fondo y render), te deja escribir qué Pokémon es cada uno y construye
+> una **galería personal** para ese perfil. El reconocimiento de tu equipo sube a
+> ~0.9+. Re-apréndelo al cambiar de equipo; se va acumulando.
+
+> **Probar envío.** El botón homónimo manda un equipo de prueba al endpoint para
+> verificar `api_base`/token/red sin depender del reconocimiento.
 
 ## Configuración (CLI)
 
