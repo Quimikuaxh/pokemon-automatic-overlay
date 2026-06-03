@@ -24,6 +24,13 @@ from .geometry import Region, clamp_region, unscale_region
 from .profiles.schema import CaptureProfile
 
 
+def _draw_text(img, text, org, color, scale=0.6):
+    """Texto con grueso contorno negro para que sea legible sobre cualquier fondo."""
+    import cv2
+    cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 4, cv2.LINE_AA)
+    cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, color, 1, cv2.LINE_AA)
+
+
 class _RectPicker:
     def __init__(self, canvas, window_name: str):
         self._base = canvas
@@ -57,8 +64,8 @@ class _RectPicker:
         hint = "ENTER=ok  'r'=repetir  ESC=abortar" + ("  'n'=ninguno" if allow_none else "")
         while True:
             img = self._base.copy()
-            cv2.putText(img, label, (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1, cv2.LINE_AA)
-            cv2.putText(img, hint, (8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 220, 255), 1, cv2.LINE_AA)
+            _draw_text(img, label, (8, 24), (0, 255, 255), 0.6)   # amarillo
+            _draw_text(img, hint, (8, 46), (255, 255, 255), 0.5)  # blanco
             if self._cur:
                 x, y, w, h = self._cur
                 cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 1)
@@ -83,10 +90,8 @@ def _wait_for_capture(cap, win: str, ref_w: int, ref_h: int, scale: float):
     while True:
         frame = cap.grab()
         disp = cv2.resize(frame, (ref_w * scale, ref_h * scale), interpolation=cv2.INTER_NEAREST)
-        cv2.putText(disp, "Abre el MENU de equipo", (8, 22),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1, cv2.LINE_AA)
-        cv2.putText(disp, "ESPACIO=capturar   ESC=abortar", (8, 44),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 220, 255), 1, cv2.LINE_AA)
+        _draw_text(disp, "Abre el MENU de equipo", (8, 24), (0, 255, 255), 0.6)
+        _draw_text(disp, "ESPACIO=capturar   ESC=abortar", (8, 46), (255, 255, 255), 0.5)
         cv2.imshow(win, disp)
         key = cv2.waitKey(30) & 0xFF
         if key == 27:       # ESC
