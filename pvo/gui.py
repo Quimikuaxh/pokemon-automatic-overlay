@@ -104,6 +104,7 @@ class App:
         self.start_btn.pack(side="left", padx=4)
         self.stop_btn = ttk.Button(run, text="■ Parar", command=self._stop, state="disabled")
         self.stop_btn.pack(side="left", padx=4)
+        ttk.Button(run, text="Probar envío", command=self._test_send).pack(side="left", padx=4)
         self.status_var = tk.StringVar(value="parado")
         ttk.Label(run, textvariable=self.status_var).pack(side="left", padx=8)
 
@@ -239,6 +240,24 @@ class App:
         if self.stop_event:
             self.stop_event.set()
         self.status_var.set("parando…")
+
+    def _test_send(self):
+        """Envía un equipo de prueba (un Pikachu) al endpoint para verificar la web."""
+        self._save()
+        cfg = self.cfg
+        if not cfg.get("api_base") or not cfg.get("ingest_token"):
+            log.error("Rellena 'API base' e 'Ingest token' antes de probar el envío.")
+            return
+        from .publisher import Publisher
+        pub = Publisher(cfg["api_base"], cfg["ingest_token"], min_interval_s=0.0)
+
+        def work():
+            log.info("Probando envío a la web (equipo de prueba: un Pikachu)…")
+            ok = pub.publish({"pokemonIds": [25, None, None, None, None, None],
+                              "nicknames": [None] * 6}, force=True)
+            log.info("Resultado de la prueba: %s", "OK ✓ (mira tu overlay)" if ok else "FALLÓ ✗ (ver arriba)")
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _on_stopped(self):
         self.start_btn.configure(state="normal")
