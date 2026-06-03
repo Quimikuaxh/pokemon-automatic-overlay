@@ -57,12 +57,22 @@ def resolve_profile(name: str) -> GameProfile:
 
 
 def build_pipeline(profile: GameProfile, cfg: dict):
+    # Umbral: override de config si está, si no el del perfil.
+    thr = profile.species.min_similarity
+    ov = cfg.get("min_similarity")
+    if ov not in (None, ""):
+        try:
+            thr = float(ov)
+        except (TypeError, ValueError):
+            log.warning("min_similarity de config no es un número: %r (se ignora)", ov)
+    log.info("Umbral de similitud: %.2f", thr)
+
     capturer = Capturer(profile.capture, profile.reference_resolution)
     detector = MenuDetector(profile)
     matcher = SpeciesMatcher(profile)
     ocr = NeuralOCR(profile.ocr)
-    extractor = TeamExtractor(profile, matcher, ocr)
-    state = TeamState(min_similarity=profile.species.min_similarity)
+    extractor = TeamExtractor(profile, matcher, ocr, min_similarity=thr)
+    state = TeamState(min_similarity=thr)
     publisher = Publisher(
         api_base=cfg["api_base"],
         ingest_token=cfg["ingest_token"],

@@ -21,13 +21,14 @@ def _crop(frame, region):
 
 
 class TeamExtractor:
-    def __init__(self, profile: GameProfile, matcher, ocr=None):
+    def __init__(self, profile: GameProfile, matcher, ocr=None, min_similarity=None):
         self._profile = profile
         self._matcher = matcher
         self._ocr = ocr
+        self._thr = min_similarity if min_similarity is not None else profile.species.min_similarity
 
     def extract(self, frame) -> list[SlotReading]:
-        thr = self._profile.species.min_similarity
+        thr = self._thr
         readings: list[SlotReading] = []
         for i, slot in enumerate(self._profile.slots):
             icon = _crop(frame, slot.icon_region)

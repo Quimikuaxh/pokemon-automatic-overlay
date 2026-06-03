@@ -66,6 +66,7 @@ class App:
         self.api_var = tk.StringVar(value=self.cfg.get("api_base", ""))
         self.token_var = tk.StringVar(value=self.cfg.get("ingest_token", ""))
         self.profile_var = tk.StringVar(value=self.cfg.get("profile", ""))
+        self.thr_var = tk.StringVar(value=str(self.cfg.get("min_similarity", "") or ""))
 
         self._build_ui()
         self._attach_logging()
@@ -90,6 +91,9 @@ class App:
                                            values=_available_profiles(), width=30)
         self.profile_combo.grid(row=2, column=1, sticky="we")
         ttk.Button(frm, text="↻", width=3, command=self._refresh_profiles).grid(row=2, column=2, sticky="w")
+
+        ttk.Label(frm, text="Umbral (vacío=perfil):").grid(row=3, column=0, sticky="w")
+        ttk.Entry(frm, textvariable=self.thr_var, width=8).grid(row=3, column=1, sticky="w")
         frm.columnconfigure(1, weight=1)
 
         btns = ttk.Frame(self.root)
@@ -128,6 +132,7 @@ class App:
         cfg["api_base"] = self.api_var.get().strip()
         cfg["ingest_token"] = self.token_var.get().strip()
         cfg["profile"] = self.profile_var.get().strip()
+        cfg["min_similarity"] = self.thr_var.get().strip()
         return cfg
 
     def _save(self):

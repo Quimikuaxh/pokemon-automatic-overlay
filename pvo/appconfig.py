@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
     "ingest_token": "",
     "profile": "",
     "publish_min_interval_s": 1.0,
+    "min_similarity": "",  # vacío = usar el del perfil; si no, override (0–1)
 }
 
 

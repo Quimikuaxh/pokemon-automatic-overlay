@@ -16,11 +16,9 @@ from typing import Optional
 
 from .profiles.schema import GameProfile
 
-# Tamaños a los que se redimensiona el recorte antes de tomar la ventana central SxS:
-# absorbe que el recuadro del usuario sea más grande que el sprite (encuadre holgado).
-_SCALES = (32, 38, 44, 50, 56)
-# Desplazamientos de la ventana respecto al centro: absorben el bamboleo del icono.
-_OFFSETS = (-2, -1, 0, 1, 2)
+# Desplazamientos para absorber el bamboleo del icono / pequeña desalineación.
+_OFFSETS_Y = (-2, -1, 0, 1, 2)
+_OFFSETS_X = (-1, 0, 1)
 
 
 class SpeciesMatcher:
@@ -65,36 +63,30 @@ class SpeciesMatcher:
     def match(self, icon_bgr) -> tuple[Optional[int], float]:
         """Devuelve (dex_id, score ZNCC en [-1,1]) del mejor sprite.
 
-        Busca sobre varias escalas (encuadre holgado) y desplazamientos (bamboleo);
-        para cada ventana, ZNCC enmascarado contra cada plantilla."""
+        Redimensiona el recorte a SxS y, con pequeños desplazamientos para el bamboleo,
+        hace ZNCC enmascarado contra cada plantilla (solo los píxeles del sprite)."""
         import cv2
         import numpy as np
 
         s = self._size
-        rgb = cv2.cvtColor(icon_bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
+        crop = cv2.cvtColor(icon_bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
+        crop = cv2.resize(crop, (s, s), interpolation=cv2.INTER_AREA)
+        shifted = [np.roll(np.roll(crop, dy, 0), dx, 1)
+                   for dy in _OFFSETS_Y for dx in _OFFSETS_X]
 
         best, best_dex = -2.0, None
-        for teff in _SCALES:
-            if teff < s:
+        for i in range(len(self._dex)):
+            tn = self._tn[i]
+            if tn < 1e-6:
                 continue
-            scaled = cv2.resize(rgb, (teff, teff), interpolation=cv2.INTER_AREA)
-            o = (teff - s) // 2
-            for ddy in _OFFSETS:
-                for ddx in _OFFSETS:
-                    y0, x0 = o + ddy, o + ddx
-                    if y0 < 0 or x0 < 0 or y0 + s > teff or x0 + s > teff:
-                        continue
-                    win = scaled[y0:y0 + s, x0:x0 + s]
-                    for i in range(len(self._dex)):
-                        tn = self._tn[i]
-                        if tn < 1e-6:
-                            continue
-                        cm = win[self._masks[i]].ravel()
-                        cm = cm - cm.mean()
-                        cn = np.sqrt((cm * cm).sum())
-                        if cn < 1e-6:
-                            continue
-                        score = float((cm * self._tv[i]).sum() / (cn * tn))
-                        if score > best:
-                            best, best_dex = score, int(self._dex[i])
+            m, tv = self._masks[i], self._tv[i]
+            for c in shifted:
+                cm = c[m].ravel()
+                cm = cm - cm.mean()
+                cn = np.sqrt((cm * cm).sum())
+                if cn < 1e-6:
+                    continue
+                score = float((cm * tv).sum() / (cn * tn))
+                if score > best:
+                    best, best_dex = score, int(self._dex[i])
         return best_dex, best
