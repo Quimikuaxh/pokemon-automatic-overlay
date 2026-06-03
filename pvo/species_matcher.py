@@ -25,6 +25,11 @@ class SpeciesMatcher:
         import numpy as np
 
         path = profile.resolve(profile.species.gallery)
+        # Auto-curación: perfiles antiguos apuntan a 'embeddings.npz'. Si al lado hay
+        # un 'templates.npz' (formato actual), úsalo sin tener que recalibrar.
+        alt = path.with_name("templates.npz")
+        if path.name != "templates.npz" and alt.exists():
+            path = alt
         if not path.exists():
             raise FileNotFoundError(
                 f"No existe la galería de plantillas: {path}\n"
@@ -32,6 +37,12 @@ class SpeciesMatcher:
                 f"python -m pvo.tools.build_templates."
             )
         data = np.load(str(path))
+        if "images" not in data.files:
+            raise ValueError(
+                f"La galería {path} tiene un formato antiguo (sin 'images'). "
+                f"Vuelve a calibrar el perfil con la generación, o regenérala con "
+                f"python -m pvo.tools.build_templates."
+            )
         self._dex = data["dex_ids"].astype(int)
         imgs = data["images"]  # (N, S, S, 4) uint8 RGBA
         self._size = int(data["size"]) if "size" in data.files else int(imgs.shape[1])
