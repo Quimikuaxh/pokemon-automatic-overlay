@@ -206,9 +206,9 @@ def run_calibration(
         return os.path.relpath(p, profiles_dir).replace("\\", "/")
 
     # Si se indica generación, se reutiliza la galería compartida gen<N> (con sus
-    # embeddings ya incluidos); si no, una carpeta propia por nombre de perfil.
+    # plantillas ya incluidas); si no, una carpeta propia por nombre de perfil.
     icons_key = f"gen{species_gen}" if species_gen else name
-    emb_path = assets_dir / "icons" / icons_key / "embeddings.npz"
+    gallery_path = assets_dir / "icons" / icons_key / "templates.npz"
 
     cap_dict = _capture_to_dict(capture)
     cap_dict["viewport"] = [round(v, 4) for v in vp_frac] if vp_frac else "auto"
@@ -227,7 +227,7 @@ def run_calibration(
             {"icon_region": list(icons[i]), **({"text_region": list(texts[i])} if texts[i] else {})}
             for i in range(6)
         ],
-        "species": {"embeddings": rel(emb_path), "min_similarity": 0.85},
+        "species": {"gallery": rel(gallery_path), "min_similarity": 0.6},
         "ocr": {"engine": "easyocr", "lang": lang},
     }
 
@@ -238,8 +238,9 @@ def run_calibration(
 
     print(f"Perfil escrito: {out}")
     print(f"Template del menú: {tpl_path}")
-    print(f"Falta generar los embeddings de especie en: {emb_path}")
-    print("  (reúne iconos NNN.png de tu render y usa: python -m pvo.tools.build_embeddings)")
+    if not gallery_path.exists():
+        print(f"Aviso: no encuentro la galería {gallery_path}. Indica la generación "
+              f"(--gen N) para usar una incluida.")
     return 0
 
 

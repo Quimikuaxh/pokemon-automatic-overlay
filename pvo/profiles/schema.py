@@ -51,8 +51,8 @@ class CaptureProfile:
 
 @dataclass(frozen=True)
 class SpeciesProfile:
-    embeddings: str      # ruta a embeddings.npz (dexId -> vector de referencia)
-    min_similarity: float
+    gallery: str         # ruta a templates.npz (sprites RGBA de referencia)
+    min_similarity: float  # umbral de score ZNCC [-1,1]
 
 
 @dataclass(frozen=True)
@@ -134,11 +134,12 @@ class GameProfile:
             ))
 
         sp = d.get("species") or {}
-        if "embeddings" not in sp:
-            raise ValueError("species: falta 'embeddings'")
+        gallery = sp.get("gallery", sp.get("embeddings"))  # 'embeddings' = alias antiguo
+        if not gallery:
+            raise ValueError("species: falta 'gallery'")
         species = SpeciesProfile(
-            embeddings=str(sp["embeddings"]),
-            min_similarity=float(sp.get("min_similarity", 0.85)),
+            gallery=str(gallery),
+            min_similarity=float(sp.get("min_similarity", 0.6)),
         )
 
         oc = d.get("ocr") or {}

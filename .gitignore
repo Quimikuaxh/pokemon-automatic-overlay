@@ -32,12 +32,13 @@ config.yaml
 
 # --- Recursos generados / pesados ---
 # Iconos fuente de las galerías: re-descargables de Bulbagarden (ver SOURCE.md).
-# El runtime solo necesita el embeddings.npz, así que los PNG no se versionan.
+# El runtime solo necesita templates.npz, así que los PNG no se versionan.
 assets/icons/gen*/*.png
-# Embeddings de referencia: se ignoran los de perfiles propios, pero SÍ se versionan
-# los de las galerías compartidas gen<N> (se empaquetan con la app).
+# Galería de plantillas: se ignoran las de perfiles propios, pero SÍ se versionan
+# las de las galerías compartidas gen<N> (se empaquetan con la app).
+assets/**/templates.npz
+!assets/icons/gen*/templates.npz
 assets/**/embeddings.npz
-!assets/icons/gen*/embeddings.npz
 # Modelos OCR descargados en caché local
 .EasyOCR/
 *.pth

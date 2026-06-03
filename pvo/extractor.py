@@ -1,6 +1,6 @@
 """Extracción del equipo a partir de un frame del menú abierto.
 
-Orquesta los 6 slots: por cada uno recorta el icono (→ especie por embeddings) y, si
+Orquesta los 6 slots: por cada uno recorta el icono (→ especie por matching) y, si
 el perfil lo define, el recuadro del mote (→ OCR). Trabajo pesado pero PUNTUAL: solo
 se llama cuando el detector confirma el menú abierto.
 """

@@ -10,7 +10,7 @@ def valid_dict():
         "capture": {"window_title_match": "mGBA", "fps": 3},
         "menu_detector": {"template": "t.png", "region": [0, 0, 240, 160]},
         "slots": [{"icon_region": [0, 0, 32, 32], "text_region": [40, 0, 64, 16]}] * 6,
-        "species": {"embeddings": "e.npz", "min_similarity": 0.85},
+        "species": {"gallery": "g.npz", "min_similarity": 0.6},
         "ocr": {"engine": "easyocr", "lang": "es"},
     }
 
@@ -41,7 +41,17 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(ValueError):
             GameProfile.from_dict(d)
 
-    def test_missing_species_embeddings(self):
+    def test_gallery_parsed(self):
+        p = GameProfile.from_dict(valid_dict())
+        self.assertEqual(p.species.gallery, "g.npz")
+
+    def test_embeddings_alias_supported(self):
+        d = valid_dict()
+        d["species"] = {"embeddings": "old.npz"}
+        p = GameProfile.from_dict(d)
+        self.assertEqual(p.species.gallery, "old.npz")
+
+    def test_missing_species_gallery(self):
         d = valid_dict()
         d["species"] = {"min_similarity": 0.9}
         with self.assertRaises(ValueError):

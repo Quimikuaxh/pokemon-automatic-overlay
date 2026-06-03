@@ -126,8 +126,8 @@ def run_with_config(cfg: dict, stop_event=None) -> int:
             recognised = sum(1 for r in readings if r.dex_id)
             log.info("Reconocidos %d/6: %s", recognised, [r.dex_id for r in readings])
             if recognised == 0:
-                log.warning("Ningún Pokémon reconocido. ¿Generaste embeddings.npz y "
-                            "calibraste bien las regiones de los iconos?")
+                log.warning("Ningún Pokémon reconocido. Revisa el encuadre de los "
+                            "iconos al calibrar (ajustados al sprite) y la generación elegida.")
                 continue
             if state.consider(readings):
                 publisher.publish(state.to_payload())
@@ -206,15 +206,6 @@ def run_calibrate(args) -> int:
     )
 
 
-def run_build_embeddings(args) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    if not args.icons or not args.out:
-        log.error("--build-embeddings requiere --icons <carpeta> y --out <fichero.npz>")
-        return 2
-    from .tools.build_embeddings import build
-    return build(Path(args.icons), Path(args.out))
-
-
 def main(argv: list[str] | None = None) -> int:
     raw_args = list(sys.argv[1:]) if argv is None else list(argv)
 
@@ -235,16 +226,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--aspect", type=float, help="[calibración] relación de aspecto del sistema (p. ej. 1.5)")
     parser.add_argument("--gen", type=int, help="[calibración] generación de sprites (3-9) → usa la galería compartida gen<N>")
     parser.add_argument("--res", default=None, help="[calibración] resolución de referencia 'WxH' (si no, la fija --gen)")
-    parser.add_argument("--lang", default="es", help="[calibración/embeddings] idioma del OCR")
-    parser.add_argument("--build-embeddings", action="store_true", help="Genera embeddings.npz")
-    parser.add_argument("--icons", help="[embeddings] carpeta con iconos NNN.png")
-    parser.add_argument("--out", help="[embeddings] ruta de salida del .npz")
+    parser.add_argument("--lang", default="es", help="[calibración] idioma del OCR")
     args = parser.parse_args(argv)
 
     if args.calibrate:
         return run_calibrate(args)
-    if args.build_embeddings:
-        return run_build_embeddings(args)
 
     # Sin argumentos (p. ej. doble clic en el .exe) → interfaz gráfica.
     if args.gui or (not raw_args and not args.no_gui):

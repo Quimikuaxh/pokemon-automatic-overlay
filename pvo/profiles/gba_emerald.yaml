@@ -27,9 +27,9 @@ slots:
   - { icon_region: [128, 136, 32, 32], text_region: [168, 142, 64, 16] }
 
 species:
-  # Iconos de menú compartidos por toda la generación 3 (Bulbagarden).
-  embeddings: ../../assets/icons/gen3/embeddings.npz
-  min_similarity: 0.85
+  # Plantillas de iconos de menú de la generación 3 (Bulbagarden).
+  gallery: ../../assets/icons/gen3/templates.npz
+  min_similarity: 0.6
 
 ocr:
   engine: easyocr

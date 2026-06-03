@@ -1,78 +1,77 @@
-"""Identificación de especie por embeddings de imagen (robusto a render HD).
+"""Identificación de especie por TEMPLATE MATCHING ENMASCARADO (sin torch).
 
-En vez de correlación de píxeles (frágil con filtros/texturas HD), se calcula el
-embedding del recorte del icono con un CNN preentrenado y se compara por similitud de
-coseno contra los vectores de referencia (`embeddings.npz`, dexId -> vector). Tolera
-escalado, anti-aliasing y variación visual moderada.
+Compara solo los píxeles del Pokémon usando la máscara alfa de cada sprite, de modo
+que **ignora el fondo del panel del menú** (que es lo que despistaba al comparar la
+imagen entera). Métrica ZNCC (invariante a brillo/contraste) con una pequeña búsqueda
+de desplazamiento para absorber el bamboleo del icono. Automático para toda la
+Pokédex; solo numpy + OpenCV.
 
-El set de referencia debe generarse a partir del MISMO render del usuario (ver
-`pvo/tools/build_embeddings.py`).
+La galería es un `templates.npz` con `dex_ids` (int32), `images` (N,S,S,4 uint8 RGBA)
+y `size` (S). Se genera con `pvo.tools.build_templates`.
 """
 
 from __future__ import annotations
 
 from typing import Optional
 
-from .profiles.schema import GameProfile, SpeciesProfile
+from .profiles.schema import GameProfile
 
-
-def build_embedder():
-    """Crea el extractor de features (MobileNetV3 sin la capa de clasificación).
-
-    Devuelve `(embed_fn, device)` donde `embed_fn(bgr_image) -> np.ndarray` (vector
-    L2-normalizado). Imports perezosos para no exigir torch en módulos puros."""
-    import numpy as np
-    import cv2
-    import torch
-    from torchvision import models, transforms
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    weights = models.MobileNet_V3_Small_Weights.DEFAULT
-    net = models.mobilenet_v3_small(weights=weights)
-    net.classifier = torch.nn.Identity()  # nos quedamos con el embedding
-    net.eval().to(device)
-
-    preprocess = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((96, 96), antialias=True),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
-
-    @torch.no_grad()
-    def embed_fn(bgr):
-        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        t = preprocess(rgb).unsqueeze(0).to(device)
-        vec = net(t).squeeze(0).cpu().numpy().astype("float32")
-        norm = np.linalg.norm(vec)
-        return vec / norm if norm > 0 else vec
-
-    return embed_fn, device
+_OFFSETS_Y = (-2, -1, 0, 1, 2)
+_OFFSETS_X = (-1, 0, 1)
 
 
 class SpeciesMatcher:
-    def __init__(self, profile: GameProfile, embed_fn=None):
+    def __init__(self, profile: GameProfile):
         import numpy as np
 
-        self._cfg: SpeciesProfile = profile.species
-        emb_path = profile.resolve(self._cfg.embeddings)
-        if not emb_path.exists():
+        path = profile.resolve(profile.species.gallery)
+        if not path.exists():
             raise FileNotFoundError(
-                f"No existe el fichero de embeddings: {emb_path}\n"
-                f"Genéralo con el botón 'Generar embeddings…' (o "
-                f"python -m pvo.tools.build_embeddings) apuntando a la carpeta de iconos."
+                f"No existe la galería de plantillas: {path}\n"
+                f"Debería venir incluida (gen<N>) o generarse con "
+                f"python -m pvo.tools.build_templates."
             )
-        data = np.load(str(emb_path))
-        # npz con 'dex_ids' (int) y 'vectors' (float32, ya L2-normalizados).
-        self._dex_ids = data["dex_ids"].astype(int)
-        self._matrix = data["vectors"].astype("float32")  # (N, D)
-        self._embed = embed_fn or build_embedder()[0]
+        data = np.load(str(path))
+        self._dex = data["dex_ids"].astype(int)
+        imgs = data["images"]  # (N, S, S, 4) uint8 RGBA
+        self._size = int(data["size"]) if "size" in data.files else int(imgs.shape[1])
+
+        rgb = imgs[:, :, :, :3].astype(np.float32)
+        masks = imgs[:, :, :, 3] > 16
+        # Precalcula, por plantilla, el vector de primer plano normalizado (para ZNCC).
+        self._masks, self._tv, self._tn = [], [], []
+        for i in range(len(self._dex)):
+            m = masks[i]
+            v = rgb[i][m].ravel()
+            v = v - v.mean()
+            self._masks.append(m)
+            self._tv.append(v)
+            self._tn.append(float(np.sqrt((v * v).sum())))
 
     def match(self, icon_bgr) -> tuple[Optional[int], float]:
-        """Devuelve (dex_id, similitud) del mejor candidato. Si el recorte parece
-        vacío, devuelve (None, 0.0)."""
+        """Devuelve (dex_id, score ZNCC en [-1,1]) del mejor sprite."""
+        import cv2
         import numpy as np
 
-        vec = self._embed(icon_bgr)  # (D,) L2-normalizado
-        sims = self._matrix @ vec    # coseno (ambos normalizados)
-        idx = int(np.argmax(sims))
-        return int(self._dex_ids[idx]), float(sims[idx])
+        s = self._size
+        crop = cv2.cvtColor(icon_bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
+        crop = cv2.resize(crop, (s, s), interpolation=cv2.INTER_AREA)
+        shifted = [np.roll(np.roll(crop, dy, 0), dx, 1)
+                   for dy in _OFFSETS_Y for dx in _OFFSETS_X]
+
+        best, best_dex = -2.0, None
+        for i in range(len(self._dex)):
+            tn = self._tn[i]
+            if tn < 1e-6:
+                continue
+            m, tv = self._masks[i], self._tv[i]
+            for c in shifted:
+                cm = c[m].ravel()
+                cm = cm - cm.mean()
+                cn = np.sqrt((cm * cm).sum())
+                if cn < 1e-6:
+                    continue
+                score = float((cm * tv).sum() / (cn * tn))
+                if score > best:
+                    best, best_dex = score, int(self._dex[i])
+        return best_dex, best

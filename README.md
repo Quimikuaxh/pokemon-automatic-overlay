@@ -7,8 +7,10 @@ interfaz** (sin leer memoria) y lo publica en el **overlay público** de `claude
 Patrón: lee el equipo **al abrir el menú de equipo**, lo **cachea** y lo mantiene
 estático mientras viajas/combates; solo lo refresca en la siguiente apertura.
 
-- **Especie** → identificada por el **icono** del menú (embeddings de imagen, robusto
-  a filtros/texturas HD).
+- **Especie** → identificada por el **icono** del menú con *template matching
+  enmascarado* (compara solo los píxeles del Pokémon usando la máscara del sprite, así
+  ignora el fondo del panel; ZNCC + búsqueda de bamboleo). Automático para toda la
+  Pokédex y sin torch.
 - **Mote** → leído por **OCR neural** (EasyOCR).
 
 ## Arquitectura
@@ -37,8 +39,8 @@ Al abrir el `.exe` (o `python -m pvo.main` sin argumentos) se abre una **ventana
 
 - Campos **API base** e **Ingest token** (se guardan en `config.yaml`).
 - Desplegable **Juego (perfil)** con los perfiles disponibles.
-- **Calibrar nuevo juego…**: pide nombre + título de ventana y lanza el asistente.
-- **Generar embeddings…**: elige la carpeta de iconos y genera el `.npz`.
+- **Calibrar nuevo juego…**: pide nombre + título de ventana + generación.
+- **Probar envío**: manda un equipo de prueba para verificar la web.
 - **▶ Arrancar / ■ Parar** y un **panel de log** con lo que va detectando.
 
 Para quien lo prefiera, todo sigue disponible por línea de comandos (secciones de
@@ -59,24 +61,22 @@ poke-overlay/                 (en %APPDATA%, etc.)
   profiles/<juego>.yaml       ← perfiles que calibras
   assets/
     templates/<juego>/party_menu.png
-    icons/gen3/ … gen9/       ← galerías de iconos incluidas (+ embeddings.npz)
+    icons/gen3/ … gen9/       ← galerías incluidas (templates.npz)
 ```
 
-Al primer arranque, la app **siembra** ahí las galerías de iconos y los perfiles de
-ejemplo que trae empaquetados (sin pisar lo que ya tengas).
+Al primer arranque, la app **siembra** ahí las galerías y los perfiles de ejemplo que
+trae empaquetados (sin pisar lo que ya tengas).
 
 ### Galerías de iconos incluidas
 
-La app trae galerías de menu sprites por generación (gen 3–9, fuente Bulbagarden) con
-sus `embeddings.npz` ya generados. Al **calibrar**, indica la **generación** del juego
-y el perfil usará esa galería directamente.
+La app trae galerías de menu sprites por generación (gen 3–9, fuente Bulbagarden) ya
+convertidas a `templates.npz`. Al **calibrar**, indica la **generación** del juego y el
+perfil usa esa galería directamente: **no hay que generar ni etiquetar nada**.
 
-> **Aprender mi equipo (recomendado para fiabilidad).** Los sprites genéricos llevan
-> fondo plano; en el juego el icono tiene detrás el **fondo del menú**, lo que baja
-> mucho la precisión. El botón **"Aprender equipo…"** captura los iconos de **tu**
-> partida (mismo fondo y render), te deja escribir qué Pokémon es cada uno y construye
-> una **galería personal** para ese perfil. El reconocimiento de tu equipo sube a
-> ~0.9+. Re-apréndelo al cambiar de equipo; se va acumulando.
+El reconocimiento compara solo los **píxeles del Pokémon** (máscara del sprite),
+ignorando el fondo del panel del menú, así que funciona con los sprites estándar para
+toda la Pokédex. (Si tu render reemplaza por completo los iconos, regenera la galería
+con `pvo.tools.build_templates` a partir de tus capturas.)
 
 > **Probar envío.** El botón homónimo manda un equipo de prueba al endpoint para
 > verificar `api_base`/token/red sin depender del reconocimiento.
@@ -116,21 +116,9 @@ Flags de override (avanzado): `--region x,y,w,h` (en vez de `--window`), `--res 
 > En NDS/3DS (doble pantalla) configura el emulador para mostrar **solo la pantalla
 > del menú**, o usa `--region`/`--viewport` para acotarla.
 
-Lo único que queda manual es generar los **embeddings** de especie (siguiente paso).
-
-## Generar el set de referencia de especies
-
-El matching compara contra iconos de **tu** render. Reúne iconos nombrados por nº de
-Pokédex (`25.png`, `131.png`, …) en `assets/icons/<perfil>/` y genera los embeddings:
-
-```bash
-python -m pvo.tools.build_embeddings \
-  --icons assets/icons/gba_emerald \
-  --out   assets/icons/gba_emerald/embeddings.npz
-```
-
-> Con texturas HD que **reemplazan** los iconos, captura las referencias con ese mismo
-> pack; si no, el matching no coincidirá.
+Con la generación indicada, el perfil ya apunta a la galería incluida: **no hay paso
+manual de referencia**. (Para regenerar plantillas desde tus propias capturas:
+`python -m pvo.tools.build_templates --icons <carpeta> --out <carpeta>/templates.npz`.)
 
 ## Ejecutar
 
