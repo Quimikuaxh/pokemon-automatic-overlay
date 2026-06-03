@@ -24,6 +24,18 @@ from .state import TeamState
 
 log = logging.getLogger("pvo")
 
+# Resolución nativa por generación/sistema. El aspecto se deriva (w/h). Elegir la
+# generación al calibrar fija estos valores automáticamente.
+GEN_PRESETS: dict[int, tuple[int, int]] = {
+    3: (240, 160),   # GBA
+    4: (256, 192),   # NDS
+    5: (256, 192),   # NDS
+    6: (400, 240),   # 3DS (pantalla superior)
+    7: (400, 240),   # 3DS (pantalla superior)
+    8: (480, 270),   # Switch (16:9, resolución de trabajo)
+    9: (480, 270),   # Switch
+}
+
 
 def load_config(path: Path) -> dict:
     import yaml
@@ -161,17 +173,32 @@ def run_calibrate(args) -> int:
     if not args.window and not args.region:
         log.error("Calibración: indica --window \"<título>\" o --region x,y,w,h")
         return 2
+
+    # La generación fija resolución y aspecto (salvo que se pasen --res/--aspect).
+    preset = GEN_PRESETS.get(args.gen) if args.gen else None
+    if args.res:
+        res = _parse_res(args.res)
+    elif preset:
+        res = preset
+    else:
+        res = (240, 160)
+    aspect = args.aspect
+    if aspect is None and preset:
+        aspect = preset[0] / preset[1]
+    log.info("Calibrando '%s' (gen %s): resolución %sx%s, aspecto %.3f",
+             args.calibrate, args.gen, res[0], res[1], aspect or 0.0)
+
     capture = CaptureProfile(
         window_title_match=args.window,
         region=_parse_region(args.region) if args.region else None,
         fps=3.0,
         viewport=_parse_region(args.viewport) if args.viewport and args.viewport != "auto" else "auto",
-        aspect_ratio=args.aspect,
+        aspect_ratio=aspect,
     )
     return run_calibration(
         name=args.calibrate,
         capture=capture,
-        reference_resolution=_parse_res(args.res),
+        reference_resolution=res,
         lang=args.lang,
         profiles_dir=paths.profiles_dir(),
         assets_dir=paths.assets_dir(),
@@ -207,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--viewport", default="auto", help="[calibración] 'auto' o 'x,y,w,h' del área de juego")
     parser.add_argument("--aspect", type=float, help="[calibración] relación de aspecto del sistema (p. ej. 1.5)")
     parser.add_argument("--gen", type=int, help="[calibración] generación de sprites (3-9) → usa la galería compartida gen<N>")
-    parser.add_argument("--res", default="240x160", help="[calibración] resolución de referencia 'WxH'")
+    parser.add_argument("--res", default=None, help="[calibración] resolución de referencia 'WxH' (si no, la fija --gen)")
     parser.add_argument("--lang", default="es", help="[calibración/embeddings] idioma del OCR")
     parser.add_argument("--build-embeddings", action="store_true", help="Genera embeddings.npz")
     parser.add_argument("--icons", help="[embeddings] carpeta con iconos NNN.png")

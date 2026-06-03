@@ -176,18 +176,23 @@ class App:
         if not window:
             messagebox.showinfo("Calibrar", "Necesito el título de la ventana para localizar el emulador.")
             return
-        aspect = simpledialog.askstring("Calibrar", "Relación de aspecto (opcional, p. ej. 1.5 para GBA):", parent=self.root)
         gen = simpledialog.askstring(
-            "Calibrar",
-            "Generación de sprites (3–9) para reconocer especies.\n"
-            "Usa la galería ya incluida gen<N> (recomendado). Vacío = carpeta propia.",
+            "Calibrar — generación del juego",
+            "¿De qué generación es el juego? Escribe el número:\n\n"
+            "  3 = GBA (Rubí/Zafiro/Esmeralda/Rojo Fuego/Verde Hoja)\n"
+            "  4 = NDS (Diamante/Perla/Platino/HG/SS)\n"
+            "  5 = NDS (Negro/Blanco 1 y 2)\n"
+            "  6 = 3DS (X/Y/Rubí Omega/Zafiro Alfa)\n"
+            "  7 = 3DS (Sol/Luna/Ultra)\n"
+            "  8 = Switch (Espada/Escudo)\n"
+            "  9 = Switch (Escarlata/Púrpura)\n\n"
+            "Esto fija la galería de iconos y la resolución/aspecto correctos.",
             parent=self.root,
         )
-        cmd = _self_command("--calibrate", name, "--window", window)
-        if aspect:
-            cmd += ["--aspect", aspect]
-        if gen and gen.strip().isdigit():
-            cmd += ["--gen", gen.strip()]
+        if not (gen and gen.strip().isdigit()):
+            messagebox.showinfo("Calibrar", "Necesito la generación (un número del 3 al 9).")
+            return
+        cmd = _self_command("--calibrate", name, "--window", window, "--gen", gen.strip())
         self._run_subprocess(cmd, on_done=self._refresh_profiles)
 
     def _build_embeddings(self):

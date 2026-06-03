@@ -90,18 +90,23 @@ cromo del emulador); las coordenadas se guardan en resolución de referencia, as
 son **independientes del tamaño de ventana/zoom**.
 
 ```bash
-# abre el menú de equipo en el emulador, y luego:
-python -m pvo.main --calibrate gba_emerald --window "mGBA" --aspect 1.5
+# abre el menú de equipo en el emulador, y luego (gen 3 = GBA):
+python -m pvo.main --calibrate esmeralda --window "mGBA" --gen 3
 ```
+
+La **generación** (`--gen 3..9`, o el desplegable en la GUI) fija a la vez la galería
+de iconos y la **resolución/aspecto** del sistema (GBA 240×160, NDS 256×192, 3DS
+400×240, Switch 480×270). No necesitas saber resoluciones.
 
 Se abre una ventana con la captura ya recortada y normalizada. Dibuja un rectángulo
 sobre cada **icono** (6), cada **mote** (6, o `n` si el juego no lo muestra) y una
-**zona fija del menú** (firma para el detector). El asistente escribe
-`pvo/profiles/gba_emerald.yaml` y el template `assets/templates/gba_emerald/party_menu.png`.
+**zona fija del menú** (firma para el detector).
 
-Flags útiles: `--region x,y,w,h` (en vez de `--window`), `--res WxH` (resolución de
-referencia, por defecto `240x160`), `--viewport x,y,w,h` (si la detección automática
-falla), `--lang es`.
+Flags de override (avanzado): `--region x,y,w,h` (en vez de `--window`), `--res WxH`,
+`--aspect`, `--viewport x,y,w,h` (si la detección automática del área falla), `--lang`.
+
+> En NDS/3DS (doble pantalla) configura el emulador para mostrar **solo la pantalla
+> del menú**, o usa `--region`/`--viewport` para acotarla.
 
 Lo único que queda manual es generar los **embeddings** de especie (siguiente paso).
 
