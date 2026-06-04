@@ -23,12 +23,18 @@ iconos, **100% fiable** y con motes reales.
 2. En la app: **Fuente = `retroarch`**, y **Dirección equipo** = `0x020244EC`
    (gPlayerParty en Pokémon Esmeralda). Pulsa **▶ Arrancar**.
 
-Lee los 6 Pokémon (especie + mote) y los publica igual que la visión. De momento el
-descifrado es de **gen 3**; gen 4/5 (DS) vendrán después. Para 3DS (Azahar) no hay API
-de memoria → ahí se usa la visión.
+Lee los 6 Pokémon (especie, + mote en gen 3) y los publica igual que la visión.
 
-> La dirección `party_address` depende del juego. Para otros juegos de gen 3 (Rubí,
-> FireRed…) cambia esa dirección.
+**Juegos** (desplegable "Juego (memoria)", rellena dirección/generación):
+- **GBA (gen 3)**: Esmeralda, Rojo Fuego/Verde Hoja, Rubí/Zafiro. Direcciones fiables.
+- **DS (gen 4/5)**: Diamante/Perla, Platino, HG/SS, Negro/Blanco, N2/B2. Corre el juego
+  en RetroArch con el core **melonDS DS**. Las direcciones DS son **orientativas**
+  (versión inglesa): si sale el equipo vacío, hay que localizar la dirección de tu
+  versión.
+- **3DS (Azahar)**: no hay API de memoria → ahí se usa la visión.
+
+> La dirección `party_address` y la generación dependen del juego; el desplegable las
+> pone por ti. Para versiones en otros idiomas puede haber que ajustar la dirección.
 
 ## Arquitectura
 

@@ -20,7 +20,7 @@ from pathlib import Path
 from . import paths
 from .appconfig import list_profiles, load_app_config, save_app_config
 from .main import run_with_config
-from .memory.games import GBA_PARTY_ADDRESSES
+from .memory.games import GAMES
 
 CONFIG_PATH = paths.config_path()
 log = logging.getLogger("pvo")
@@ -105,7 +105,7 @@ class App:
 
         ttk.Label(frm, text="Juego (memoria):").grid(row=5, column=0, sticky="w")
         game_combo = ttk.Combobox(frm, textvariable=self.game_var, state="readonly",
-                                  values=list(GBA_PARTY_ADDRESSES), width=22)
+                                  values=list(GAMES), width=26)
         game_combo.grid(row=5, column=1, sticky="w")
         game_combo.bind("<<ComboboxSelected>>", self._on_game_selected)
 
@@ -146,10 +146,12 @@ class App:
         self.profile_combo["values"] = _available_profiles()
 
     def _on_game_selected(self, _evt=None):
-        addr = GBA_PARTY_ADDRESSES.get(self.game_var.get())
-        if addr:
-            self.addr_var.set(addr)
+        info = GAMES.get(self.game_var.get())
+        if info:
+            self.addr_var.set(info["address"])
             self.source_var.set("retroarch")
+            self.cfg["gen"] = info["gen"]
+            self.cfg["mon_size"] = info["mon_size"]
 
     def _collect_cfg(self) -> dict:
         cfg = dict(self.cfg)

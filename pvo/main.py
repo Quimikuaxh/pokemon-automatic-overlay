@@ -89,7 +89,6 @@ def run_memory_loop(cfg: dict, stop_event=None) -> int:
     import json
     import threading
 
-    from .memory.gen3 import decode_party
     from .memory.retroarch import RetroArchClient
 
     host = cfg.get("retroarch_host") or "127.0.0.1"
@@ -100,12 +99,22 @@ def run_memory_loop(cfg: dict, stop_event=None) -> int:
         log.error("party_address inválida: %r (ej. 0x020244EC)", cfg.get("party_address"))
         return 2
 
+    gen = int(cfg.get("gen") or 3)
+    if gen == 3:
+        from .memory.gen3 import decode_party
+        mon_size = 100
+        decode = decode_party
+    else:
+        from .memory.gen45 import decode_party as _dp45
+        mon_size = int(cfg.get("mon_size") or (236 if gen == 4 else 220))
+        decode = lambda raw: _dp45(raw, mon_size)  # noqa: E731
+
     client = RetroArchClient(host, port)
     publisher = Publisher(
         api_base=cfg["api_base"], ingest_token=cfg["ingest_token"],
         min_interval_s=float(cfg.get("publish_min_interval_s", 1.0)),
     )
-    log.info("Fuente: RetroArch (memoria) %s:%s, equipo en 0x%X.", host, port, addr)
+    log.info("Fuente: RetroArch (memoria) %s:%s, equipo en 0x%X (gen %s).", host, port, addr, gen)
 
     stop = stop_event or threading.Event()
     last_sig = None
@@ -113,8 +122,8 @@ def run_memory_loop(cfg: dict, stop_event=None) -> int:
     import time
     while not stop.is_set():
         try:
-            raw = client.read_memory(addr, 600)
-            party = decode_party(raw)
+            raw = client.read_memory(addr, 6 * mon_size)
+            party = decode(raw)
             ids = [p[0] if p else None for p in party]
             nicks = [p[1] if p else None for p in party]
             payload = {"pokemonIds": ids, "nicknames": nicks}

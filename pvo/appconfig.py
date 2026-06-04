@@ -19,6 +19,8 @@ DEFAULT_CONFIG = {
     "retroarch_host": "127.0.0.1",
     "retroarch_port": 55355,
     "party_address": "0x020244EC",  # gPlayerParty en Pokémon Esmeralda (GBA)
+    "gen": 3,                        # generación (descifrado): 3 (GBA), 4/5 (DS)
+    "mon_size": 100,                 # bytes por Pokémon en el equipo (gen3=100, 4=236, 5=220)
 }
 
 
