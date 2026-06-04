@@ -100,6 +100,7 @@ class App:
         btns.pack(fill="x", **pad)
         ttk.Button(btns, text="Guardar config", command=self._save).pack(side="left", padx=4)
         ttk.Button(btns, text="Calibrar nuevo juego…", command=self._calibrate).pack(side="left", padx=4)
+        ttk.Button(btns, text="Auto-localizar equipo…", command=self._autolocate).pack(side="left", padx=4)
         ttk.Button(btns, text="Guardar captura", command=self._save_capture).pack(side="left", padx=4)
 
         run = ttk.Frame(self.root)
@@ -153,6 +154,73 @@ class App:
         except queue.Empty:
             pass
         self.root.after(150, self._drain_log)
+
+    def _autolocate(self):
+        """Localiza los 6 iconos a partir de los nombres del equipo (sin calibrar)."""
+        from tkinter import messagebox
+        cfg = self._collect_cfg()
+        self.cfg = cfg
+        if not cfg.get("profile"):
+            messagebox.showinfo("Auto-localizar", "Elige antes un perfil (con su ventana/viewport).")
+            return
+        try:
+            from .main import resolve_profile
+            profile = resolve_profile(cfg["profile"])
+        except Exception as e:  # noqa: BLE001
+            log.error("No se pudo cargar el perfil '%s': %s", cfg["profile"], e)
+            return
+
+        tk, ttk = self.tk, self.ttk
+        top = tk.Toplevel(self.root)
+        top.title("Auto-localizar equipo")
+        ttk.Label(top, justify="left", text=(
+            "Con el menú de equipo abierto, escribe el Pokémon de cada slot (en inglés),\n"
+            "en orden. La app encontrará la posición de cada icono sola.")).pack(padx=10, pady=8)
+        rows = ttk.Frame(top); rows.pack(padx=10, pady=4)
+        entries = {}
+        for i in range(6):
+            fr = ttk.Frame(rows); fr.grid(row=i, column=0, sticky="w", pady=2)
+            ttk.Label(fr, text=f"Slot {i + 1}:", width=8).pack(side="left")
+            var = tk.StringVar(); ttk.Entry(fr, textvariable=var, width=22).pack(side="left", padx=6)
+            entries[i] = var
+
+        def run():
+            names = [entries[i].get() for i in range(6)]
+            top.destroy()
+
+            def work():
+                try:
+                    import cv2  # noqa: F401
+                    from . import autolocate
+                    from .capture import Capturer
+                    frame = Capturer(profile.capture, profile.reference_resolution).grab()
+                    nmap = autolocate.load_name_map()
+                    dex_list = [autolocate.name_to_dex(n, nmap) for n in names]
+                    gallery = profile.resolve(profile.species.gallery)
+                    alt = gallery.with_name("templates.npz")
+                    if gallery.name != "templates.npz" and alt.exists():
+                        gallery = alt
+                    results = autolocate.locate_team(frame, dex_list, gallery)
+                    regions = []
+                    for i, r in enumerate(results):
+                        if r is None:
+                            regions.append(None)
+                            log.warning("Slot %d: '%s' no reconocido como Pokémon; se omite.", i + 1, names[i])
+                        else:
+                            reg, score = r
+                            regions.append(reg)
+                            log.info("Slot %d (%s, dex %s): pos %s score %.2f", i + 1, names[i], dex_list[i], reg[:2], score)
+                    path = autolocate.write_slots(profile.name, regions)
+                    log.info("Recuadros actualizados en %s. Pulsa ▶ Arrancar.", path)
+                    self.root.after(0, self._refresh_profiles)
+                except Exception:  # noqa: BLE001
+                    log.exception("Fallo al auto-localizar el equipo")
+
+            threading.Thread(target=work, daemon=True).start()
+
+        bf = ttk.Frame(top); bf.pack(pady=8)
+        ttk.Button(bf, text="Localizar", command=run).pack(side="left", padx=6)
+        ttk.Button(bf, text="Cancelar", command=top.destroy).pack(side="left", padx=6)
 
     def _save_capture(self):
         """Guarda el frame normalizado (240x160) + los recortes por slot, para poder
