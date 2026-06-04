@@ -56,7 +56,7 @@ class App:
         self.ttk = ttk
         self.root = root
         root.title("Poke Overlay")
-        root.geometry("560x520")
+        root.geometry("560x580")
 
         self.cfg = load_app_config(CONFIG_PATH)
         self.log_q: "queue.Queue[str]" = queue.Queue()
@@ -67,6 +67,8 @@ class App:
         self.token_var = tk.StringVar(value=self.cfg.get("ingest_token", ""))
         self.profile_var = tk.StringVar(value=self.cfg.get("profile", ""))
         self.thr_var = tk.StringVar(value=str(self.cfg.get("min_similarity", "") or ""))
+        self.source_var = tk.StringVar(value=self.cfg.get("source", "vision") or "vision")
+        self.addr_var = tk.StringVar(value=str(self.cfg.get("party_address", "0x020244EC")))
 
         self._build_ui()
         self._attach_logging()
@@ -94,6 +96,13 @@ class App:
 
         ttk.Label(frm, text="Umbral (vacío=perfil):").grid(row=3, column=0, sticky="w")
         ttk.Entry(frm, textvariable=self.thr_var, width=8).grid(row=3, column=1, sticky="w")
+
+        ttk.Label(frm, text="Fuente:").grid(row=4, column=0, sticky="w")
+        ttk.Combobox(frm, textvariable=self.source_var, state="readonly",
+                     values=["vision", "retroarch"], width=12).grid(row=4, column=1, sticky="w")
+
+        ttk.Label(frm, text="Dirección equipo (RetroArch):").grid(row=5, column=0, sticky="w")
+        ttk.Entry(frm, textvariable=self.addr_var, width=14).grid(row=5, column=1, sticky="w")
         frm.columnconfigure(1, weight=1)
 
         btns = ttk.Frame(self.root)
@@ -134,6 +143,8 @@ class App:
         cfg["ingest_token"] = self.token_var.get().strip()
         cfg["profile"] = self.profile_var.get().strip()
         cfg["min_similarity"] = self.thr_var.get().strip()
+        cfg["source"] = self.source_var.get().strip() or "vision"
+        cfg["party_address"] = self.addr_var.get().strip() or "0x020244EC"
         return cfg
 
     def _save(self):

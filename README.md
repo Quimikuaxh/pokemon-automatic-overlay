@@ -13,6 +13,23 @@ estático mientras viajas/combates; solo lo refresca en la siguiente apertura.
   Pokédex y sin torch.
 - **Mote** → leído por **OCR neural** (EasyOCR).
 
+## Fuente: RetroArch (memoria) — recomendado para GBA/DS
+
+Si juegas en **RetroArch** (o corres DS en su core melonDS), puedes leer el equipo
+**directo de la memoria del juego** en vez de por visión: sin calibrar, sin reconocer
+iconos, **100% fiable** y con motes reales.
+
+1. En RetroArch: **Settings → Network → Network Commands = ON** (puerto 55355).
+2. En la app: **Fuente = `retroarch`**, y **Dirección equipo** = `0x020244EC`
+   (gPlayerParty en Pokémon Esmeralda). Pulsa **▶ Arrancar**.
+
+Lee los 6 Pokémon (especie + mote) y los publica igual que la visión. De momento el
+descifrado es de **gen 3**; gen 4/5 (DS) vendrán después. Para 3DS (Azahar) no hay API
+de memoria → ahí se usa la visión.
+
+> La dirección `party_address` depende del juego. Para otros juegos de gen 3 (Rubí,
+> FireRed…) cambia esa dirección.
+
 ## Arquitectura
 
 ```

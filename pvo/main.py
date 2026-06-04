@@ -81,16 +81,74 @@ def build_pipeline(profile: GameProfile, cfg: dict):
     return capturer, detector, extractor, state, publisher
 
 
+def run_memory_loop(cfg: dict, stop_event=None) -> int:
+    """Lee el equipo de la memoria del emulador vía RetroArch y lo publica.
+
+    Mucho más fiable que la visión (sin calibrar ni reconocer iconos). Solo gen 3
+    de momento."""
+    import json
+    import threading
+
+    from .memory.gen3 import decode_party
+    from .memory.retroarch import RetroArchClient
+
+    host = cfg.get("retroarch_host") or "127.0.0.1"
+    port = int(cfg.get("retroarch_port") or 55355)
+    try:
+        addr = int(str(cfg.get("party_address") or "0x020244EC"), 0)
+    except ValueError:
+        log.error("party_address inválida: %r (ej. 0x020244EC)", cfg.get("party_address"))
+        return 2
+
+    client = RetroArchClient(host, port)
+    publisher = Publisher(
+        api_base=cfg["api_base"], ingest_token=cfg["ingest_token"],
+        min_interval_s=float(cfg.get("publish_min_interval_s", 1.0)),
+    )
+    log.info("Fuente: RetroArch (memoria) %s:%s, equipo en 0x%X.", host, port, addr)
+
+    stop = stop_event or threading.Event()
+    last_sig = None
+    last_err = 0.0
+    import time
+    while not stop.is_set():
+        try:
+            raw = client.read_memory(addr, 600)
+            party = decode_party(raw)
+            ids = [p[0] if p else None for p in party]
+            nicks = [p[1] if p else None for p in party]
+            payload = {"pokemonIds": ids, "nicknames": nicks}
+            sig = json.dumps(payload, sort_keys=True)
+            if sig != last_sig:
+                last_sig = sig
+                log.info("Equipo: %s", ids)
+                publisher.publish(payload)
+        except Exception as e:  # noqa: BLE001
+            now = time.monotonic()
+            if now - last_err >= 3.0:
+                last_err = now
+                log.error("Lectura de memoria falló: %s", e)
+        stop.wait(1.0)
+    log.info("Detenido.")
+    return 0
+
+
 def run_with_config(cfg: dict, stop_event=None) -> int:
     """Arranca el pipeline con una config ya cargada. Se detiene cuando `stop_event`
     se activa (o con Ctrl+C). Usado tanto por la CLI como por la GUI."""
     import threading
 
-    missing = [k for k in ("api_base", "ingest_token", "profile") if not cfg.get(k)]
+    missing = [k for k in ("api_base", "ingest_token") if not cfg.get(k)]
     if missing:
         log.error("Faltan campos en la config: %s", ", ".join(missing))
         return 2
 
+    if (cfg.get("source") or "vision").lower() == "retroarch":
+        return run_memory_loop(cfg, stop_event)
+
+    if not cfg.get("profile"):
+        log.error("Falta 'profile' (fuente=visión).")
+        return 2
     profile = resolve_profile(cfg["profile"])
     log.info("Perfil cargado: %s (%sx%s)", profile.name, *profile.reference_resolution)
 

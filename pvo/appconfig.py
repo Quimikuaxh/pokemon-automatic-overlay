@@ -14,6 +14,11 @@ DEFAULT_CONFIG = {
     "profile": "",
     "publish_min_interval_s": 1.0,
     "min_similarity": "",  # vacío = usar el del perfil; si no, override (0–1)
+    # Fuente del equipo: "vision" (visión sobre la pantalla) o "retroarch" (memoria).
+    "source": "vision",
+    "retroarch_host": "127.0.0.1",
+    "retroarch_port": 55355,
+    "party_address": "0x020244EC",  # gPlayerParty en Pokémon Esmeralda (GBA)
 }
 
 

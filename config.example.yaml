@@ -7,8 +7,19 @@ api_base: "https://tu-backend.onrender.com"
 # Token de ingesta de máquina. Cópialo desde la pestaña "Stream" de claude-test.
 ingest_token: "00000000-0000-0000-0000-000000000000"
 
+# Fuente del equipo:
+#   "vision"    → reconoce los iconos en la pantalla (cualquier emulador).
+#   "retroarch" → lee la memoria del juego vía RetroArch (mucho más fiable; GBA/DS).
+source: "vision"
+
+# --- Solo si source = vision ---
 # Perfil de juego a usar (fichero en pvo/profiles/<profile>.yaml).
 profile: "gba_emerald"
+
+# --- Solo si source = retroarch ---
+retroarch_host: "127.0.0.1"
+retroarch_port: 55355
+party_address: "0x020244EC"   # gPlayerParty en Pokémon Esmeralda (GBA)
 
 # Cada cuántos segundos publicar como máximo (debounce de red).
 publish_min_interval_s: 1.0
