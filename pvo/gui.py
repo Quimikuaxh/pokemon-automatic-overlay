@@ -20,6 +20,7 @@ from pathlib import Path
 from . import paths
 from .appconfig import list_profiles, load_app_config, save_app_config
 from .main import run_with_config
+from .memory.games import GBA_PARTY_ADDRESSES
 
 CONFIG_PATH = paths.config_path()
 log = logging.getLogger("pvo")
@@ -69,6 +70,7 @@ class App:
         self.thr_var = tk.StringVar(value=str(self.cfg.get("min_similarity", "") or ""))
         self.source_var = tk.StringVar(value=self.cfg.get("source", "vision") or "vision")
         self.addr_var = tk.StringVar(value=str(self.cfg.get("party_address", "0x020244EC")))
+        self.game_var = tk.StringVar(value="")
 
         self._build_ui()
         self._attach_logging()
@@ -101,8 +103,14 @@ class App:
         ttk.Combobox(frm, textvariable=self.source_var, state="readonly",
                      values=["vision", "retroarch"], width=12).grid(row=4, column=1, sticky="w")
 
-        ttk.Label(frm, text="Dirección equipo (RetroArch):").grid(row=5, column=0, sticky="w")
-        ttk.Entry(frm, textvariable=self.addr_var, width=14).grid(row=5, column=1, sticky="w")
+        ttk.Label(frm, text="Juego (memoria):").grid(row=5, column=0, sticky="w")
+        game_combo = ttk.Combobox(frm, textvariable=self.game_var, state="readonly",
+                                  values=list(GBA_PARTY_ADDRESSES), width=22)
+        game_combo.grid(row=5, column=1, sticky="w")
+        game_combo.bind("<<ComboboxSelected>>", self._on_game_selected)
+
+        ttk.Label(frm, text="Dirección equipo (RetroArch):").grid(row=6, column=0, sticky="w")
+        ttk.Entry(frm, textvariable=self.addr_var, width=14).grid(row=6, column=1, sticky="w")
         frm.columnconfigure(1, weight=1)
 
         btns = ttk.Frame(self.root)
@@ -136,6 +144,12 @@ class App:
     # --- helpers ---
     def _refresh_profiles(self):
         self.profile_combo["values"] = _available_profiles()
+
+    def _on_game_selected(self, _evt=None):
+        addr = GBA_PARTY_ADDRESSES.get(self.game_var.get())
+        if addr:
+            self.addr_var.set(addr)
+            self.source_var.set("retroarch")
 
     def _collect_cfg(self) -> dict:
         cfg = dict(self.cfg)
