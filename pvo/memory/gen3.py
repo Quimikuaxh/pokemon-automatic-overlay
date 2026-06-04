@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from .gen3_species import HOENN_TO_NATIONAL
+
 # Orden de las 4 subestructuras según personality % 24.
 _SUBSTRUCT_ORDER = [
     "GAEM", "GAME", "GEAM", "GEMA", "GMAE", "GMEA",
@@ -38,12 +40,12 @@ def _u32(b: bytes, i: int) -> int:
 
 
 def internal_to_national(idx: int) -> Optional[int]:
-    """Índice interno de especie (gen 3) → nº de Pokédex nacional."""
+    """Índice interno de especie (gen 3) → nº de Pokédex nacional.
+
+    1-251 = nacional; Hoenn (277-411) sigue una permutación (tabla del decomp)."""
     if 1 <= idx <= 251:
         return idx
-    if 277 <= idx <= 411:          # Hoenn: desplazamiento fijo de 25
-        return idx - 25
-    return None                    # 0 = hueco; 252-276 = no usados
+    return HOENN_TO_NATIONAL.get(idx)   # None si hueco/no usado
 
 
 def decode_nickname(raw: bytes) -> Optional[str]:

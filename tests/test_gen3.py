@@ -1,6 +1,7 @@
 import unittest
 
 from pvo.memory import gen3
+from pvo.memory.gen3_species import NATIONAL_TO_INTERNAL
 
 
 def _enc_name(s: str) -> bytes:
@@ -11,7 +12,7 @@ def _enc_name(s: str) -> bytes:
 
 def build_mon(national: int, nickname: str = "", pv: int = 0x12345678, otid: int = 0x9ABCDEF0) -> bytes:
     """Construye los 100 bytes cifrados de un Pokémon de gen 3."""
-    internal = national if national <= 251 else national + 25
+    internal = national if national <= 251 else NATIONAL_TO_INTERNAL[national]
     key = pv ^ otid
 
     data = bytearray(48)
@@ -40,10 +41,11 @@ def build_mon(national: int, nickname: str = "", pv: int = 0x12345678, otid: int
 class TestGen3(unittest.TestCase):
     def test_internal_to_national(self):
         self.assertEqual(gen3.internal_to_national(25), 25)     # Pikachu
-        self.assertEqual(gen3.internal_to_national(335), 310)   # Manectric (Hoenn)
+        self.assertEqual(gen3.internal_to_national(338), 310)   # Manectric (Hoenn)
+        self.assertEqual(gen3.internal_to_national(394), 282)   # Gardevoir (Hoenn)
         self.assertEqual(gen3.internal_to_national(277), 252)   # Treecko
         self.assertIsNone(gen3.internal_to_national(0))
-        self.assertIsNone(gen3.internal_to_national(260))       # no usado
+        self.assertIsNone(gen3.internal_to_national(260))       # no usado (interno)
 
     def test_decode_known_team(self):
         team = {1: 310, 2: 286, 3: 260, 4: 323, 5: 227, 6: 282}  # slot→dex
