@@ -1,8 +1,8 @@
 """Publica el estado de combate al endpoint de claude-test.
 
-`POST {api_base}/api/stream-team/battle/{token}` (token = share_token del usuario, el
-mismo del modo stream). Solo hace POST si el contenido cambió (ignorando 'turn') y
-respeta el debounce. Cliente HTTP inyectable para testear sin red.
+`POST {api_base}/api/stream-team/battle/{token}` (token = ingest_token del usuario, el
+mismo del modo stream/ingesta). Solo hace POST si el contenido cambió (ignorando 'turn')
+y respeta el debounce. Cliente HTTP inyectable para testear sin red.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ class BattlePublisher:
             self._last_ts = now
             return True
         if status == 404:
-            log.error("HTTP 404: el token no existe en el backend. Revisa el token (share_token).")
+            log.error("HTTP 404: el token no existe en el backend. Revisa el token (ingest_token).")
         elif status == 400:
             log.error("HTTP 400: payload inválido.")
         else:

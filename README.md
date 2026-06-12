@@ -50,8 +50,9 @@ Ambas fases identifican por **icono/menu-sprite** (mismo matcher ZNCC), así que
 **dex IDs** y son independientes del idioma del juego. El modo automático **no pisa** el
 manual: con el toggle "Visión" apagado en la web, todo funciona como siempre.
 
-**Token:** se reutiliza el **mismo `share_token`** de la pestaña Stream (lo muestra el
-panel "Visión" de la pestaña Combate). No hay token nuevo.
+**Token:** se reutiliza el **mismo `ingest_token`** (token de ingesta) que ya usa el
+overlay para el modo stream; lo muestra el panel "Visión" de la pestaña Combate. No hay
+token nuevo ni hay que cambiarlo al alternar entre stream y combate.
 
 **Puesta en marcha:**
 
