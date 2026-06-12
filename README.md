@@ -79,6 +79,15 @@ OBS (Proyector en ventana) → captura → clasifica pantalla (selección/combat
    combate   → 4 iconos activos → dexIds → POST … (fase 2, cada turno)
 ```
 
+**Si no pasa a fase 2 / no lee los activos.** Las dos pantallas comparten el fondo del
+estadio, así que la "firma" de combate puede no discriminar. Por eso el combate se detecta
+**también por el reconocimiento de los iconos de los activos** (no solo por el template):
+si ves en el log `Combate — propios: […] | rivales: […]`, va bien. Si ves `sin activos
+reconocibles (scores por slot: …)`, los recuadros de los iconos activos están mal
+encuadrados o el umbral es alto → recalibra (`--calibrate-champions`) ajustando los slots
+al icono, o baja `min_similarity`. Al calibrar, elige **firmas fijas y únicas** de cada
+pantalla (texto "Selecciona 4 Pokémon" / botones "Luchar"–"Pokémon"), no el fondo.
+
 ## Arquitectura
 
 ```

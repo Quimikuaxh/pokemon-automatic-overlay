@@ -80,6 +80,7 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
     last_read = 0.0
     last_beat = 0.0
     last_err = 0.0
+    last_diag = 0.0
     first = True
     try:
         while not stop.is_set():
@@ -104,29 +105,40 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
                 confs = ", ".join(f"{k}={v:.2f}" for k, v in classifier.confidences.items())
                 log.info("vigilando… pantalla=%s (%s)", screen or "—", confs)
 
-            if screen is None or (now - last_read) < READ_INTERVAL_S:
+            if (now - last_read) < READ_INTERVAL_S:
                 continue
             last_read = now
 
             if screen == "selection":
-                readings = extractor.extract_selection(frame)
-                rivals = _recognized(readings)
+                rivals = _recognized(extractor.extract_selection(frame))
                 if not rivals:
                     continue
                 payload = state.consider_selection(rivals)
                 if payload:
                     log.info("Selección — rivales: %s", rivals)
                     publisher.publish(payload)
-            elif screen == "battle":
-                allies_r, rivals_r = extractor.extract_battle(frame)
-                allies = _recognized(allies_r)
-                rivals = _recognized(rivals_r)
-                if not allies and not rivals:
-                    continue
-                payload = state.consider_battle(allies, rivals)
-                if payload:
-                    log.info("Combate — propios: %s | rivales: %s", allies, rivals)
-                    publisher.publish(payload)
+                continue
+
+            # Combate: por template ('battle') o, si la firma no discrimina del fondo
+            # compartido, por el reconocimiento de los iconos de los activos. Esto hace
+            # que el paso a fase 2 y la lectura de turnos no dependan de un buen template.
+            allies_r, rivals_r = extractor.extract_battle(frame)
+            allies = _recognized(allies_r)
+            rivals = _recognized(rivals_r)
+            n = len(allies) + len(rivals)
+            if screen != "battle" and n < 2:
+                # Ni 'battle' por template ni activos suficientes → probablemente otra
+                # pantalla. Diagnóstico ocasional para ayudar a calibrar los slots.
+                if n == 0 and (now - last_diag) >= 4.0:
+                    last_diag = now
+                    scores = [round(r.score, 2) for r in (allies_r + rivals_r)]
+                    log.info("sin activos reconocibles (scores por slot: %s, umbral %.2f)",
+                             scores, thr)
+                continue
+            payload = state.consider_battle(allies, rivals)
+            if payload:
+                log.info("Combate — propios: %s | rivales: %s", allies, rivals)
+                publisher.publish(payload)
     except KeyboardInterrupt:
         pass
     log.info("Detenido.")

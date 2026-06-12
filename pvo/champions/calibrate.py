@@ -105,7 +105,8 @@ def run_champions_calibration(
         vp_frac = _pick_viewport(raw, win)
         sel_frame = _normalize(raw, vp_frac, ref_w, ref_h, aspect)
         sel_sig = _pick_on_frame(sel_frame, ref_w, ref_h, win,
-                                 ["FIRMA de la pantalla de selección (zona fija)"])[0]
+                                 ["FIRMA selección: algo FIJO y UNICO de esta pantalla "
+                                  "(texto 'Selecciona 4 Pokemon' o barra 'Todo listo', NO el fondo)"])[0]
         rival_slots = _pick_on_frame(sel_frame, ref_w, ref_h, win,
                                      [f"ICONO rival {i + 1}/6" for i in range(6)])
 
@@ -115,7 +116,8 @@ def run_champions_calibration(
             raise KeyboardInterrupt
         bat_frame = _normalize(raw2, vp_frac, ref_w, ref_h, aspect)
         bat_sig = _pick_on_frame(bat_frame, ref_w, ref_h, win,
-                                 ["FIRMA de la pantalla de combate (zona fija)"])[0]
+                                 ["FIRMA combate: algo FIJO y UNICO de esta pantalla "
+                                  "(botones 'Luchar'/'Pokemon' abajo-dcha, NO el fondo ni las barras de HP)"])[0]
         ally_slots = _pick_on_frame(bat_frame, ref_w, ref_h, win,
                                     [f"ICONO activo PROPIO {i + 1}/2" for i in range(2)])
         brival_slots = _pick_on_frame(bat_frame, ref_w, ref_h, win,
