@@ -38,10 +38,12 @@ assets/icons/gen*/*.png
 # las de las galerías compartidas gen<N> (se empaquetan con la app).
 assets/**/templates.npz
 !assets/icons/gen*/templates.npz
+!assets/icons/champions/templates.npz
 assets/**/embeddings.npz
-# Champions: sprites descargados de Bulbagarden + templates de pantalla calibrados
-# (reproducibles localmente con las tools; no se versionan).
-assets/icons/champions/
+# Champions: los PNG fuente descargados de Bulbagarden y los templates de pantalla
+# calibrados (específicos de tu captura de OBS) no se versionan; la galería
+# templates.npz SÍ (compartida, se empaqueta con la app).
+assets/icons/champions/src/
 assets/templates/champions/
 # Modelos OCR descargados en caché local
 .EasyOCR/
