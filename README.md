@@ -36,6 +36,48 @@ Lee los 6 Pokémon (especie, + mote en gen 3) y los publica igual que la visión
 > La dirección `party_address` y la generación dependen del juego; el desplegable las
 > pone por ti. Para versiones en otros idiomas puede haber que ajustar la dirección.
 
+## Modo Pokémon Champions (Switch vía OBS) → pestaña Combate
+
+Modo aparte para **Pokémon Champions** capturado con **OBS**. En vez de publicar un
+equipo al overlay de stream, alimenta la pestaña **Combate** de claude-test:
+
+- **Fase 1 (pantalla de selección):** detecta el **equipo rival** (los menu-sprites del
+  panel rival; tu equipo lo eliges tú a mano en la web).
+- **Fase 2 (combate dobles):** cada turno relee los **4 activos** (2 propios + 2 rivales)
+  y los marca como seleccionados.
+
+Ambas fases identifican por **icono/menu-sprite** (mismo matcher ZNCC), así que envían
+**dex IDs** y son independientes del idioma del juego. El modo automático **no pisa** el
+manual: con el toggle "Visión" apagado en la web, todo funciona como siempre.
+
+**Token:** se reutiliza el **mismo `share_token`** de la pestaña Stream (lo muestra el
+panel "Visión" de la pestaña Combate). No hay token nuevo.
+
+**Puesta en marcha:**
+
+1. **Galería Champions** (una vez): descarga los menu sprites de Bulbagarden y construye
+   la galería:
+   ```bash
+   python -m pvo.tools.download_champions_sprites
+   python -m pvo.tools.build_champions_templates
+   ```
+2. **OBS:** clic derecho en la fuente del juego → **Proyector en ventana (Fuente)**.
+3. **Calibra** las pantallas (selección y combate) recortando, a clics, la firma de cada
+   pantalla y los iconos rivales/activos:
+   ```bash
+   python -m pvo.main --calibrate-champions --window "Windowed Projector"
+   ```
+   (o el botón **Calibrar Champions…** de la GUI).
+4. En la app: **Fuente = `champions`**, **perfil = `champions`**, rellena
+   `api_base`/token y **▶ Arrancar**.
+5. En la web (pestaña **Combate**): activa **Visión** y pega el token en el overlay.
+
+```
+OBS (Proyector en ventana) → captura → clasifica pantalla (selección/combate)
+   selección → iconos rival → dexIds → POST /api/stream-team/battle/:token (fase 1)
+   combate   → 4 iconos activos → dexIds → POST … (fase 2, cada turno)
+```
+
 ## Arquitectura
 
 ```

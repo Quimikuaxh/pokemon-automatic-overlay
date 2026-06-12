@@ -152,7 +152,12 @@ def run_with_config(cfg: dict, stop_event=None) -> int:
         log.error("Faltan campos en la config: %s", ", ".join(missing))
         return 2
 
-    if (cfg.get("source") or "vision").lower() == "retroarch":
+    src = (cfg.get("source") or "vision").lower()
+    if src == "champions":
+        from .champions.loop import run_champions_loop
+        return run_champions_loop(cfg, stop_event)
+
+    if src == "retroarch":
         return run_memory_loop(cfg, stop_event)
 
     if not cfg.get("profile"):
@@ -283,6 +288,36 @@ def run_calibrate(args) -> int:
     )
 
 
+def run_champions_calibrate(args) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    from .champions.calibrate import run_champions_calibration
+    from .profiles.schema import CaptureProfile
+
+    if not args.window and not args.region:
+        log.error("Calibración: indica --window \"<título>\" o --region x,y,w,h "
+                  "(p. ej. --window \"Windowed Projector\")")
+        return 2
+
+    res = _parse_res(args.res) if args.res else (1280, 720)
+    aspect = args.aspect if args.aspect is not None else res[0] / res[1]
+    log.info("Calibrando Champions: resolución %sx%s, aspecto %.3f", res[0], res[1], aspect)
+
+    capture = CaptureProfile(
+        window_title_match=args.window,
+        region=_parse_region(args.region) if args.region else None,
+        fps=2.0,
+        viewport=_parse_region(args.viewport) if args.viewport and args.viewport != "auto" else "auto",
+        aspect_ratio=aspect,
+    )
+    return run_champions_calibration(
+        name="champions",
+        capture=capture,
+        reference_resolution=res,
+        profiles_dir=paths.profiles_dir(),
+        assets_dir=paths.assets_dir(),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_args = list(sys.argv[1:]) if argv is None else list(argv)
 
@@ -297,6 +332,10 @@ def main(argv: list[str] | None = None) -> int:
         "--calibrate", metavar="NAME",
         help="Lanza el asistente de calibración y genera el perfil NAME.",
     )
+    parser.add_argument(
+        "--calibrate-champions", action="store_true",
+        help="Calibra el modo Pokémon Champions (pantallas selección/combate vía OBS).",
+    )
     parser.add_argument("--window", help="[calibración] subcadena del título de la ventana del emulador")
     parser.add_argument("--region", help="[calibración] región de captura 'x,y,w,h' (alternativa a --window)")
     parser.add_argument("--viewport", default="auto", help="[calibración] 'auto' o 'x,y,w,h' del área de juego")
@@ -305,6 +344,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--res", default=None, help="[calibración] resolución de referencia 'WxH' (si no, la fija --gen)")
     parser.add_argument("--lang", default="es", help="[calibración] idioma del OCR")
     args = parser.parse_args(argv)
+
+    if args.calibrate_champions:
+        return run_champions_calibrate(args)
 
     if args.calibrate:
         return run_calibrate(args)

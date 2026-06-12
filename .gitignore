@@ -39,6 +39,10 @@ assets/icons/gen*/*.png
 assets/**/templates.npz
 !assets/icons/gen*/templates.npz
 assets/**/embeddings.npz
+# Champions: sprites descargados de Bulbagarden + templates de pantalla calibrados
+# (reproducibles localmente con las tools; no se versionan).
+assets/icons/champions/
+assets/templates/champions/
 # Modelos OCR descargados en caché local
 .EasyOCR/
 *.pth

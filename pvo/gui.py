@@ -101,7 +101,7 @@ class App:
 
         ttk.Label(frm, text="Fuente:").grid(row=4, column=0, sticky="w")
         ttk.Combobox(frm, textvariable=self.source_var, state="readonly",
-                     values=["vision", "retroarch"], width=12).grid(row=4, column=1, sticky="w")
+                     values=["vision", "retroarch", "champions"], width=12).grid(row=4, column=1, sticky="w")
 
         ttk.Label(frm, text="Juego (memoria):").grid(row=5, column=0, sticky="w")
         game_combo = ttk.Combobox(frm, textvariable=self.game_var, state="readonly",
@@ -117,6 +117,7 @@ class App:
         btns.pack(fill="x", **pad)
         ttk.Button(btns, text="Guardar config", command=self._save).pack(side="left", padx=4)
         ttk.Button(btns, text="Calibrar nuevo juego…", command=self._calibrate).pack(side="left", padx=4)
+        ttk.Button(btns, text="Calibrar Champions…", command=self._calibrate_champions).pack(side="left", padx=4)
         ttk.Button(btns, text="Auto-localizar equipo…", command=self._autolocate).pack(side="left", padx=4)
         ttk.Button(btns, text="Guardar captura", command=self._save_capture).pack(side="left", padx=4)
 
@@ -325,6 +326,27 @@ class App:
             return
         cmd = _self_command("--calibrate", name, "--window", window, "--gen", gen.strip())
         self._run_subprocess(cmd, on_done=self._refresh_profiles)
+
+    def _calibrate_champions(self):
+        from tkinter import simpledialog, messagebox
+
+        window = simpledialog.askstring(
+            "Calibrar Champions",
+            "Título de la ventana de OBS a capturar.\n"
+            "En OBS: clic derecho en la fuente → 'Proyector en ventana (Fuente)'.",
+            initialvalue="Windowed Projector", parent=self.root,
+        )
+        if not window:
+            messagebox.showinfo("Calibrar Champions", "Necesito el título de la ventana del proyector de OBS.")
+            return
+
+        def on_done():
+            self._refresh_profiles()
+            self.profile_var.set("champions")
+            self.source_var.set("champions")
+
+        cmd = _self_command("--calibrate-champions", "--window", window)
+        self._run_subprocess(cmd, on_done=on_done)
 
     # --- arrancar / parar ---
     def _start(self):
