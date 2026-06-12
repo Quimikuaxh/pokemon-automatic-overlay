@@ -45,7 +45,9 @@ def _iter_files(session):
             url = info[0].get("url")
             if not url:
                 continue
-            filename = title.split(":", 1)[-1]  # quita el prefijo "File:"
+            # El título viene con espacios ("Menu CP 0003.png"); el nombre canónico del
+            # fichero usa guiones bajos ("Menu_CP_0003.png").
+            filename = title.split(":", 1)[-1].replace(" ", "_")
             yield filename, url
         cont = data.get("continue")
         if not cont:

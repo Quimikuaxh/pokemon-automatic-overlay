@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 SIZE = 32
-_NAME_RE = re.compile(r"^Menu_CP_(\d{4})(?:-.*)?\.(png|gif|bmp)$", re.IGNORECASE)
+_NAME_RE = re.compile(r"^Menu[ _]CP[ _](\d{4})(?:-.*)?\.(png|gif|bmp)$", re.IGNORECASE)
 
 
 def build(src_dir: Path, out_path: Path, size: int = SIZE) -> int:
