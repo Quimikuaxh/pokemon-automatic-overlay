@@ -85,6 +85,10 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
     last_beat = 0.0
     last_err = 0.0
     last_diag = 0.0
+    # Anti-transitorio: una lectura solo se publica si se repite (estable) en 2 ciclos,
+    # para que un frame malo de transición no pise el equipo/activos ya detectados.
+    pending_sel: list[int] | None = None
+    pending_bat: tuple[list[int], list[int]] | None = None
     first = True
     try:
         while not stop.is_set():
@@ -117,6 +121,9 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
                 rivals = _recognized(extractor.extract_selection(frame))
                 if not rivals:
                     continue
+                if rivals != pending_sel:
+                    pending_sel = rivals  # esperar confirmación antes de publicar
+                    continue
                 payload = state.consider_selection(rivals)
                 if payload:
                     log.info("Selección — rivales: %s", rivals)
@@ -145,6 +152,10 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
                 last_diag = now
                 log.info("slots combate — propios=%s rivales=%s (umbral %.2f)",
                          _fmt_scores(allies_r), _fmt_scores(rivals_r), thr)
+            cur = (allies, rivals)
+            if cur != pending_bat:
+                pending_bat = cur  # esperar confirmación (filtra activos de transición)
+                continue
             payload = state.consider_battle(allies, rivals)
             if payload:
                 log.info("Combate — propios: %s | rivales: %s", allies, rivals)
