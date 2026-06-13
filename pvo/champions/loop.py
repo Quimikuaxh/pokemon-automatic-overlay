@@ -43,6 +43,10 @@ def _recognized(readings) -> list[int]:
     return [r.dex_id for r in readings if r.dex_id is not None]
 
 
+def _fmt_scores(readings) -> list[tuple[int | None, float]]:
+    return [(r.dex_id, round(r.score, 2)) for r in readings]
+
+
 def run_champions_loop(cfg: dict, stop_event=None) -> int:
     missing = [k for k in ("api_base", "ingest_token") if not cfg.get(k)]
     if missing:
@@ -135,6 +139,12 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
                     log.info("sin activos reconocibles (scores por slot: %s, umbral %.2f)",
                              scores, thr)
                 continue
+            # Si falta algún slot por reconocer, muestra los scores de los 4 (throttled)
+            # para poder ajustar el recuadro / umbral del slot que falla.
+            if n < (len(allies_r) + len(rivals_r)) and (now - last_diag) >= 5.0:
+                last_diag = now
+                log.info("slots combate — propios=%s rivales=%s (umbral %.2f)",
+                         _fmt_scores(allies_r), _fmt_scores(rivals_r), thr)
             payload = state.consider_battle(allies, rivals)
             if payload:
                 log.info("Combate — propios: %s | rivales: %s", allies, rivals)
