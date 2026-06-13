@@ -320,6 +320,43 @@ def run_champions_calibrate(args) -> int:
     )
 
 
+def run_champions_debug(args) -> int:
+    """Captura un frame del perfil Champions y guarda el frame + el recorte de CADA slot,
+    para revisar visualmente qué está capturando cada recuadro. Ejecútalo con la pantalla
+    de combate (o de selección) visible."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    paths.ensure_seeded()
+    import cv2
+
+    from .capture import Capturer
+    from .champions.loop import resolve_champions_profile
+
+    profile = resolve_champions_profile("champions")
+    frame = Capturer(profile.capture, profile.reference_resolution).grab()
+
+    out = paths.data_dir() / "debug" / "champions"
+    out.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(out / "frame.png"), frame)
+
+    def save(label: str, region) -> None:
+        x, y, w, h = region
+        crop = frame[y:y + h, x:x + w]
+        if crop.size:
+            cv2.imwrite(str(out / f"{label}.png"), crop)
+
+    for i, r in enumerate(profile.selection_rival_slots):
+        save(f"sel_rival_{i + 1}", r)
+    for i, r in enumerate(profile.battle_ally_slots):
+        save(f"bat_ally_{i + 1}", r)
+    for i, r in enumerate(profile.battle_rival_slots):
+        save(f"bat_rival_{i + 1}", r)
+
+    log.info("Volcado en: %s", out)
+    log.info("  frame.png = pantalla normalizada; bat_rival_N.png = recortes de los activos rivales, etc.")
+    log.info("  Abre las imágenes: cada recorte debe contener SOLO el icono del Pokémon.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_args = list(sys.argv[1:]) if argv is None else list(argv)
 
@@ -338,6 +375,10 @@ def main(argv: list[str] | None = None) -> int:
         "--calibrate-champions", action="store_true",
         help="Calibra el modo Pokémon Champions (pantallas selección/combate vía OBS).",
     )
+    parser.add_argument(
+        "--champions-debug", action="store_true",
+        help="Guarda el frame + el recorte de cada slot del perfil Champions (para calibrar).",
+    )
     parser.add_argument("--window", help="[calibración] subcadena del título de la ventana del emulador")
     parser.add_argument("--region", help="[calibración] región de captura 'x,y,w,h' (alternativa a --window)")
     parser.add_argument("--viewport", default="auto", help="[calibración] 'auto' o 'x,y,w,h' del área de juego")
@@ -346,6 +387,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--res", default=None, help="[calibración] resolución de referencia 'WxH' (si no, la fija --gen)")
     parser.add_argument("--lang", default="es", help="[calibración] idioma del OCR")
     args = parser.parse_args(argv)
+
+    if args.champions_debug:
+        return run_champions_debug(args)
 
     if args.calibrate_champions:
         return run_champions_calibrate(args)

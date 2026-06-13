@@ -118,6 +118,7 @@ class App:
         ttk.Button(btns, text="Guardar config", command=self._save).pack(side="left", padx=4)
         ttk.Button(btns, text="Calibrar nuevo juego…", command=self._calibrate).pack(side="left", padx=4)
         ttk.Button(btns, text="Calibrar Champions…", command=self._calibrate_champions).pack(side="left", padx=4)
+        ttk.Button(btns, text="Recortes Champions", command=self._champions_debug).pack(side="left", padx=4)
         ttk.Button(btns, text="Auto-localizar equipo…", command=self._autolocate).pack(side="left", padx=4)
         ttk.Button(btns, text="Guardar captura", command=self._save_capture).pack(side="left", padx=4)
 
@@ -347,6 +348,11 @@ class App:
 
         cmd = _self_command("--calibrate-champions", "--window", window)
         self._run_subprocess(cmd, on_done=on_done)
+
+    def _champions_debug(self):
+        # Guarda el frame + el recorte de cada slot del perfil Champions, para ver qué
+        # captura cada recuadro. Ejecútalo con la pantalla de combate visible.
+        self._run_subprocess(_self_command("--champions-debug"))
 
     # --- arrancar / parar ---
     def _start(self):

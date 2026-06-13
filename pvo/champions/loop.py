@@ -118,7 +118,8 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
             last_read = now
 
             if screen == "selection":
-                rivals = _recognized(extractor.extract_selection(frame))
+                readings = extractor.extract_selection(frame)
+                rivals = _recognized(readings)
                 if not rivals:
                     continue
                 if rivals != pending_sel:
@@ -127,6 +128,7 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
                 payload = state.consider_selection(rivals)
                 if payload:
                     log.info("Selección — rivales: %s", rivals)
+                    log.info("  scores por slot: %s (umbral %.2f)", _fmt_scores(readings), thr)
                     publisher.publish(payload)
                 continue
 
