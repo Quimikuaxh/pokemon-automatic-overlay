@@ -47,6 +47,10 @@ class CaptureProfile:
     fps: float
     viewport: object = "auto"          # "auto" (detección) o Region explícita
     aspect_ratio: Optional[float] = None  # ancho/alto del sistema (p. ej. 1.5 GBA)
+    # "region" = grab de la zona de pantalla (mss; afectado por ventanas delante).
+    # "window" = captura del contenido de la ventana por título aunque esté tapada
+    #            (Windows: PrintWindow). Cae a "region" si no está disponible.
+    method: str = "region"
 
 
 @dataclass(frozen=True)

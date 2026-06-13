@@ -308,6 +308,8 @@ def run_champions_calibrate(args) -> int:
         fps=2.0,
         viewport=_parse_region(args.viewport) if args.viewport and args.viewport != "auto" else "auto",
         aspect_ratio=aspect,
+        # En Windows captura el contenido de la ventana del proyector aunque esté tapada.
+        method="window" if (args.window and sys.platform == "win32") else "region",
     )
     return run_champions_calibration(
         name="champions",

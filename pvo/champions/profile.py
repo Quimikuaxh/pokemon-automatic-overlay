@@ -66,6 +66,7 @@ class ChampionsProfile:
             fps=float(cap.get("fps", 2)),
             viewport=viewport,
             aspect_ratio=float(aspect) if aspect is not None else None,
+            method=str(cap.get("method", "region")),
         )
         if capture.window_title_match is None and capture.region is None:
             raise ValueError("capture: define 'window_title_match' o 'region'")

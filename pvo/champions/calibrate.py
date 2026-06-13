@@ -149,6 +149,8 @@ def run_champions_calibration(
     cap_dict["viewport"] = [round(v, 4) for v in vp_frac] if vp_frac else "auto"
     if aspect is not None:
         cap_dict["aspect_ratio"] = aspect
+    if capture.method != "region":
+        cap_dict["method"] = capture.method
 
     data = {
         "profile": name,

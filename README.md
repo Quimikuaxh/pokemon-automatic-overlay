@@ -63,6 +63,9 @@ token nuevo ni hay que cambiarlo al alternar entre stream y combate.
    python -m pvo.tools.build_champions_templates
    ```
 2. **OBS:** clic derecho en la fuente del juego → **Proyector en ventana (Fuente)**.
+   En **Windows** la captura es por **contenido de ventana** (PrintWindow): funciona aunque
+   el proyector esté **tapado por otra ventana** o en segundo plano (no hace falta tenerlo
+   en primer plano). En otros SO cae a captura de región (no debe estar tapado).
 3. **Calibra** las pantallas (selección y combate) recortando, a clics, la firma de cada
    pantalla y los iconos rivales/activos:
    ```bash

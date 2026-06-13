@@ -52,8 +52,19 @@ class Capturer:
         )
 
     def _grab_window(self):
-        """Captura la ventana/región completa (con cromo). Devuelve BGR sin redimensionar."""
+        """Captura la ventana/región completa (con cromo). Devuelve BGR sin redimensionar.
+
+        Con method="window" y un título configurado, intenta capturar el CONTENIDO de la
+        ventana (Windows/PrintWindow) aunque esté tapada; si no está disponible, cae a mss.
+        """
         import numpy as np  # imports perezosos
+
+        if getattr(self._cfg, "method", "region") == "window" and self._cfg.window_title_match:
+            from . import wincapture
+            frame = wincapture.grab_window_by_title(self._cfg.window_title_match)
+            if frame is not None and frame.size > 0:
+                return frame
+            # cae a mss si la captura por ventana no está disponible/falla
 
         x, y, w, h = self._bbox()
         sct = self._ensure_sct()
