@@ -61,10 +61,26 @@ class SpeciesMatcher:
             self._tn.append(float(np.sqrt((v * v).sum())))
 
     def match(self, icon_bgr) -> tuple[Optional[int], float]:
-        """Devuelve (dex_id, score ZNCC en [-1,1]) del mejor sprite.
+        """Devuelve (dex_id, score ZNCC en [-1,1]) del mejor sprite de toda la galería."""
+        return self._match_indices(icon_bgr, range(len(self._dex)))
 
-        Redimensiona el recorte a SxS y, con pequeños desplazamientos para el bamboleo,
-        hace ZNCC enmascarado contra cada plantilla (solo los píxeles del sprite)."""
+    def match_among(self, icon_bgr, candidates) -> tuple[Optional[int], float]:
+        """Como `match` pero restringido a un subconjunto de dex IDs.
+
+        Útil cuando ya se conoce el conjunto posible (p. ej. los activos rivales solo
+        pueden ser uno de los 6 del equipo rival detectado en la fase de selección):
+        comparar contra pocos candidatos es mucho más tolerante y discrimina mejor
+        aunque el score absoluto sea bajo."""
+        cand = {int(c) for c in candidates}
+        if not cand:
+            return self.match(icon_bgr)
+        idxs = [i for i in range(len(self._dex)) if int(self._dex[i]) in cand]
+        if not idxs:
+            return None, -2.0
+        return self._match_indices(icon_bgr, idxs)
+
+    def _match_indices(self, icon_bgr, idxs) -> tuple[Optional[int], float]:
+        """ZNCC enmascarado del recorte contra las plantillas indicadas (con bamboleo)."""
         import cv2
         import numpy as np
 
@@ -75,7 +91,7 @@ class SpeciesMatcher:
                    for dy in _OFFSETS_Y for dx in _OFFSETS_X]
 
         best, best_dex = -2.0, None
-        for i in range(len(self._dex)):
+        for i in idxs:
             tn = self._tn[i]
             if tn < 1e-6:
                 continue

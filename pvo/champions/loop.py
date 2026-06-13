@@ -67,10 +67,21 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
             log.warning("min_similarity de config no es un número: %r (se ignora)", ov)
     log.info("Umbral de similitud: %.2f", thr)
 
+    rival_thr = thr
+    ov_r = cfg.get("rival_min_similarity")
+    if ov_r not in (None, ""):
+        try:
+            rival_thr = float(ov_r)
+        except (TypeError, ValueError):
+            rival_thr = 0.25
+    else:
+        rival_thr = 0.25  # restringido al equipo rival → umbral más permisivo
+    log.info("Umbral activos rivales (restringido al equipo): %.2f", rival_thr)
+
     capturer = Capturer(profile.capture, profile.reference_resolution)
     matcher = SpeciesMatcher(profile)  # duck-typing: usa profile.resolve()/profile.species
     classifier = ScreenClassifier(profile)
-    extractor = BattleExtractor(profile, matcher, min_similarity=thr)
+    extractor = BattleExtractor(profile, matcher, min_similarity=thr, rival_min_similarity=rival_thr)
     state = BattleState(mode=profile.mode)
     publisher = BattlePublisher(
         api_base=cfg["api_base"],
@@ -135,7 +146,7 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
             # Combate: por template ('battle') o, si la firma no discrimina del fondo
             # compartido, por el reconocimiento de los iconos de los activos. Esto hace
             # que el paso a fase 2 y la lectura de turnos no dependan de un buen template.
-            allies_r, rivals_r = extractor.extract_battle(frame)
+            allies_r, rivals_r = extractor.extract_battle(frame, rival_candidates=state.rivals)
             allies = _recognized(allies_r)
             rivals = _recognized(rivals_r)
             n = len(allies) + len(rivals)

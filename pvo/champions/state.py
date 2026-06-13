@@ -48,3 +48,8 @@ class BattleState:
     @property
     def turn(self) -> int:
         return self._turn
+
+    @property
+    def rivals(self) -> list[int]:
+        """Equipo rival detectado en la fase de selección (para acotar los activos)."""
+        return list(self._rivals)
