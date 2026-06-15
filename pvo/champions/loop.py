@@ -10,6 +10,7 @@ clasificador y la captura son baratos y corren en cada frame.
 from __future__ import annotations
 
 import logging
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -36,6 +37,19 @@ def resolve_champions_profile(name: str) -> ChampionsProfile:
         f"Perfil Champions '{name}' no encontrado en {paths.profiles_dir()} ni en los "
         f"ejemplos. Genéralo con: python -m pvo.main --calibrate-champions"
     )
+
+
+def _ensure_gallery(profile: ChampionsProfile) -> None:
+    """Si la galería del perfil no existe en la carpeta del usuario, la siembra desde la
+    galería Champions empaquetada (auto-curación tras actualizar)."""
+    gal = profile.resolve(profile.species.gallery)
+    if gal.exists():
+        return
+    bundled = paths.bundled_assets_dir() / "icons" / "champions" / "templates.npz"
+    if bundled.exists() and bundled.resolve() != gal.resolve():
+        gal.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(bundled, gal)
+        log.info("Galería Champions sembrada en %s", gal)
 
 
 def _recognized(readings) -> list[int]:
@@ -77,6 +91,7 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
         rival_thr = 0.25  # restringido al equipo rival → umbral más permisivo
     log.info("Umbral activos rivales (restringido al equipo): %.2f", rival_thr)
 
+    _ensure_gallery(profile)
     capturer = Capturer(profile.capture, profile.reference_resolution)
     matcher = SpeciesMatcher(profile)  # duck-typing: usa profile.resolve()/profile.species
     extractor = BattleExtractor(profile, matcher, min_similarity=thr, rival_min_similarity=rival_thr)
