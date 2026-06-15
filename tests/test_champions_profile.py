@@ -44,11 +44,12 @@ class TestChampionsProfile(unittest.TestCase):
         p = ChampionsProfile.from_dict(_valid(), base_dir=Path("/profiles"))
         self.assertTrue(str(p.resolve(p.species.gallery)).endswith("templates.npz"))
 
-    def test_missing_screen_raises(self):
+    def test_screens_are_optional(self):
+        # La clasificación de pantalla es por contenido; 'screens' ya no es obligatorio.
         d = _valid()
-        del d["screens"]["battle"]
-        with self.assertRaises(ValueError):
-            ChampionsProfile.from_dict(d)
+        del d["screens"]
+        p = ChampionsProfile.from_dict(d)
+        self.assertEqual(p.screens, {})
 
     def test_missing_rival_slots_raises(self):
         d = _valid()

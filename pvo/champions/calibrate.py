@@ -104,38 +104,22 @@ def run_champions_calibration(
             raise KeyboardInterrupt
         vp_frac = _pick_viewport(raw, win)
         sel_frame = _normalize(raw, vp_frac, ref_w, ref_h, aspect)
-        sel_sig = _pick_on_frame(sel_frame, ref_w, ref_h, win,
-                                 ["FIRMA selección: algo FIJO y UNICO de esta pantalla "
-                                  "(texto 'Selecciona 4 Pokemon' o barra 'Todo listo', NO el fondo)"])[0]
         rival_slots = _pick_on_frame(sel_frame, ref_w, ref_h, win,
-                                     [f"ICONO rival {i + 1}/6" for i in range(6)])
+                                     [f"ICONO rival {i + 1}/6 (panel derecho)" for i in range(6)])
 
         # 2) Pantalla de COMBATE (mismo viewport)
         raw2 = _wait_for_frame(cap, "Pon la pantalla de COMBATE (dobles)", win)
         if raw2 is None:
             raise KeyboardInterrupt
         bat_frame = _normalize(raw2, vp_frac, ref_w, ref_h, aspect)
-        bat_sig = _pick_on_frame(bat_frame, ref_w, ref_h, win,
-                                 ["FIRMA combate: algo FIJO y UNICO de esta pantalla "
-                                  "(botones 'Luchar'/'Pokemon' abajo-dcha, NO el fondo ni las barras de HP)"])[0]
         ally_slots = _pick_on_frame(bat_frame, ref_w, ref_h, win,
-                                    [f"ICONO activo PROPIO {i + 1}/2" for i in range(2)])
+                                    [f"ICONO activo PROPIO {i + 1}/2 (abajo-izq)" for i in range(2)])
         brival_slots = _pick_on_frame(bat_frame, ref_w, ref_h, win,
-                                      [f"ICONO activo RIVAL {i + 1}/2" for i in range(2)])
+                                      [f"ICONO activo RIVAL {i + 1}/2 (arriba-dcha)" for i in range(2)])
     except KeyboardInterrupt:
         cv2.destroyAllWindows()
         print("Calibración abortada; no se ha escrito nada.")
         return 1
-
-    # Templates de pantalla (recortes de la firma elegida).
-    tpl_dir = assets_dir / "templates" / "champions"
-    tpl_dir.mkdir(parents=True, exist_ok=True)
-    sx, sy, sw, sh = sel_sig
-    bx, by, bw, bh = bat_sig
-    sel_tpl = tpl_dir / "selection.png"
-    bat_tpl = tpl_dir / "battle.png"
-    cv2.imwrite(str(sel_tpl), sel_frame[sy:sy + sh, sx:sx + sw])
-    cv2.imwrite(str(bat_tpl), bat_frame[by:by + bh, bx:bx + bw])
     cv2.destroyAllWindows()
 
     def rel(p: Path) -> str:
@@ -152,18 +136,13 @@ def run_champions_calibration(
     if capture.method != "region":
         cap_dict["method"] = capture.method
 
+    # Sin 'screens': la pantalla se detecta por contenido (cuántos iconos se reconocen).
     data = {
         "profile": name,
         "reference_resolution": [ref_w, ref_h],
         "mode": mode,
         "capture": cap_dict,
         "species": {"gallery": rel(gallery_path), "min_similarity": 0.45},
-        "screens": {
-            "selection": {"template": rel(sel_tpl), "region": [0, 0, ref_w, ref_h],
-                          "min_confidence": 0.7, "stable_frames": 2},
-            "battle": {"template": rel(bat_tpl), "region": [0, 0, ref_w, ref_h],
-                       "min_confidence": 0.7, "stable_frames": 2},
-        },
         "selection": {"rival_slots": [list(r) for r in rival_slots]},
         "battle": {
             "ally_slots": [list(r) for r in ally_slots],
@@ -177,7 +156,6 @@ def run_champions_calibration(
         yaml.safe_dump(data, fh, sort_keys=False, allow_unicode=True)
 
     print(f"Perfil escrito: {out}")
-    print(f"Templates de pantalla: {sel_tpl}, {bat_tpl}")
     if not gallery_path.exists():
         print(f"Aviso: falta la galería {gallery_path}. Genérala con:\n"
               f"  python -m pvo.tools.download_champions_sprites\n"

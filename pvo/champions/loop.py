@@ -17,7 +17,6 @@ from pathlib import Path
 from .. import paths
 from ..capture import Capturer
 from ..species_matcher import SpeciesMatcher
-from .classifier import ScreenClassifier
 from .extractor import BattleExtractor
 from .profile import ChampionsProfile, load_champions_profile
 from .publisher import BattlePublisher
@@ -80,7 +79,6 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
 
     capturer = Capturer(profile.capture, profile.reference_resolution)
     matcher = SpeciesMatcher(profile)  # duck-typing: usa profile.resolve()/profile.species
-    classifier = ScreenClassifier(profile)
     extractor = BattleExtractor(profile, matcher, min_similarity=thr, rival_min_similarity=rival_thr)
     state = BattleState(mode=profile.mode)
     publisher = BattlePublisher(
@@ -117,62 +115,60 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
                 first = False
                 log.info("Captura OK: %sx%s px.", frame.shape[1], frame.shape[0])
 
-            screen = classifier.update(frame)
             now = time.monotonic()
-            if now - last_beat >= 2.0:
-                last_beat = now
-                confs = ", ".join(f"{k}={v:.2f}" for k, v in classifier.confidences.items())
-                log.info("vigilando… pantalla=%s (%s)", screen or "—", confs)
-
             if (now - last_read) < READ_INTERVAL_S:
                 continue
             last_read = now
 
-            if screen == "selection":
-                readings = extractor.extract_selection(frame)
-                rivals = _recognized(readings)
-                if not rivals:
-                    continue
-                if rivals != pending_sel:
-                    pending_sel = rivals  # esperar confirmación antes de publicar
-                    continue
-                payload = state.consider_selection(rivals)
-                if payload:
-                    log.info("Selección — rivales: %s", rivals)
-                    log.info("  scores por slot: %s (umbral %.2f)", _fmt_scores(readings), thr)
-                    publisher.publish(payload)
-                continue
-
-            # Combate: por template ('battle') o, si la firma no discrimina del fondo
-            # compartido, por el reconocimiento de los iconos de los activos. Esto hace
-            # que el paso a fase 2 y la lectura de turnos no dependan de un buen template.
+            # Clasificación por CONTENIDO (sin plantillas de pantalla): se leen los iconos
+            # de ambas pantallas y gana la que reconozca más Pokémon. Robusto al fondo
+            # compartido del estadio y sin depender de firmas calibradas.
+            sel_readings = extractor.extract_selection(frame)
+            sel_rivals = _recognized(sel_readings)
             allies_r, rivals_r = extractor.extract_battle(frame, rival_candidates=state.rivals)
             allies = _recognized(allies_r)
             rivals = _recognized(rivals_r)
-            n = len(allies) + len(rivals)
-            if screen != "battle" and n < 2:
-                # Ni 'battle' por template ni activos suficientes → probablemente otra
-                # pantalla. Diagnóstico ocasional para ayudar a calibrar los slots.
-                if n == 0 and (now - last_diag) >= 4.0:
+            n_sel = len(sel_rivals)
+            n_bat = len(allies) + len(rivals)
+
+            if n_bat >= 2 and n_bat >= n_sel:
+                screen = "battle"
+            elif n_sel >= 3 and n_sel > n_bat:
+                screen = "selection"
+            else:
+                screen = None
+
+            if now - last_beat >= 4.0:
+                last_beat = now
+                log.info("vigilando… pantalla=%s (rivales_sel=%d, activos=%d)",
+                         screen or "—", n_sel, n_bat)
+
+            if screen == "selection":
+                if sel_rivals != pending_sel:
+                    pending_sel = sel_rivals  # esperar confirmación antes de publicar
+                    continue
+                payload = state.consider_selection(sel_rivals)
+                if payload:
+                    log.info("Selección — rivales: %s", sel_rivals)
+                    log.info("  scores por slot: %s (umbral %.2f)", _fmt_scores(sel_readings), thr)
+                    publisher.publish(payload)
+            elif screen == "battle":
+                if (len(allies) + len(rivals)) < (len(allies_r) + len(rivals_r)) and (now - last_diag) >= 5.0:
                     last_diag = now
-                    scores = [round(r.score, 2) for r in (allies_r + rivals_r)]
-                    log.info("sin activos reconocibles (scores por slot: %s, umbral %.2f)",
-                             scores, thr)
-                continue
-            # Si falta algún slot por reconocer, muestra los scores de los 4 (throttled)
-            # para poder ajustar el recuadro / umbral del slot que falla.
-            if n < (len(allies_r) + len(rivals_r)) and (now - last_diag) >= 5.0:
+                    log.info("slots combate — propios=%s rivales=%s (umbral %.2f / rival %.2f)",
+                             _fmt_scores(allies_r), _fmt_scores(rivals_r), thr, rival_thr)
+                cur = (allies, rivals)
+                if cur != pending_bat:
+                    pending_bat = cur  # esperar confirmación (filtra activos de transición)
+                    continue
+                payload = state.consider_battle(allies, rivals)
+                if payload:
+                    log.info("Combate — propios: %s | rivales: %s", allies, rivals)
+                    publisher.publish(payload)
+            elif (now - last_diag) >= 6.0:
                 last_diag = now
-                log.info("slots combate — propios=%s rivales=%s (umbral %.2f)",
-                         _fmt_scores(allies_r), _fmt_scores(rivals_r), thr)
-            cur = (allies, rivals)
-            if cur != pending_bat:
-                pending_bat = cur  # esperar confirmación (filtra activos de transición)
-                continue
-            payload = state.consider_battle(allies, rivals)
-            if payload:
-                log.info("Combate — propios: %s | rivales: %s", allies, rivals)
-                publisher.publish(payload)
+                log.info("sin pantalla — sel=%s | combate propios=%s rivales=%s",
+                         _fmt_scores(sel_readings), _fmt_scores(allies_r), _fmt_scores(rivals_r))
     except KeyboardInterrupt:
         pass
     log.info("Detenido.")

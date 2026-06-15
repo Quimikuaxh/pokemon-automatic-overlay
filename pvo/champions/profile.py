@@ -80,15 +80,15 @@ class ChampionsProfile:
             min_similarity=float(sp.get("min_similarity", 0.45)),
         )
 
-        screens_raw = d.get("screens") or {}
+        # 'screens' es OPCIONAL: la clasificación de pantalla es por contenido (cuántos
+        # iconos se reconocen), no por plantillas. Se conserva el parseo por
+        # compatibilidad con perfiles antiguos, pero no es obligatorio.
         screens: dict[str, ScreenSignature] = {}
-        for key in ("selection", "battle"):
-            s = screens_raw.get(key)
-            if not s:
-                raise ValueError(f"screens.{key}: falta la firma de pantalla")
-            for k in ("template", "region"):
-                if k not in s:
-                    raise ValueError(f"screens.{key}: falta '{k}'")
+        for key, s in (d.get("screens") or {}).items():
+            if key not in ("selection", "battle") or not s:
+                continue
+            if "template" not in s or "region" not in s:
+                continue
             screens[key] = ScreenSignature(
                 template=str(s["template"]),
                 region=_as_region(s["region"], f"screens.{key}.region"),

@@ -1,0 +1,33 @@
+# Perfil Pokémon Champions PRE-HECHO (recuadros ya medidos de capturas a 1920x1080).
+# No requiere calibrar: la pantalla se detecta por CONTENIDO (cuántos iconos se
+# reconocen), no por firmas. Si tu encuadre de OBS difiere, ajusta los recuadros o
+# recalibra con: python -m pvo.main --calibrate-champions --window "Windowed Projector"
+profile: champions
+reference_resolution: [1920, 1080]
+mode: Doubles
+capture:
+  window_title_match: Windowed Projector
+  viewport: auto
+  aspect_ratio: 1.7778
+  fps: 2
+  method: window        # Windows: captura el contenido de la ventana aunque esté tapada
+species:
+  gallery: ../../assets/icons/champions/templates.npz
+  min_similarity: 0.45
+# Panel rival (derecha) de la pantalla de selección: 6 modelos.
+selection:
+  rival_slots:
+    - [1583, 160, 74, 74]
+    - [1585, 284, 74, 74]
+    - [1581, 405, 74, 74]
+    - [1581, 530, 74, 74]
+    - [1583, 655, 74, 74]
+    - [1585, 780, 74, 74]
+# Activos en combate (dobles): 2 propios (abajo-izq) + 2 rivales (arriba-dcha).
+battle:
+  ally_slots:
+    - [55, 926, 104, 104]    # propio 1
+    - [458, 928, 94, 94]     # propio 2
+  rival_slots:
+    - [1103, 92, 40, 40]     # rival 1
+    - [1497, 57, 62, 62]     # rival 2
