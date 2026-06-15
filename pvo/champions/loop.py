@@ -9,6 +9,7 @@ clasificador y la captura son baratos y corren en cada frame.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import shutil
 import threading
@@ -39,17 +40,22 @@ def resolve_champions_profile(name: str) -> ChampionsProfile:
     )
 
 
-def _ensure_gallery(profile: ChampionsProfile) -> None:
-    """Si la galería del perfil no existe en la carpeta del usuario, la siembra desde la
-    galería Champions empaquetada (auto-curación tras actualizar)."""
-    gal = profile.resolve(profile.species.gallery)
-    if gal.exists():
-        return
-    bundled = paths.bundled_assets_dir() / "icons" / "champions" / "templates.npz"
-    if bundled.exists() and bundled.resolve() != gal.resolve():
-        gal.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(bundled, gal)
-        log.info("Galería Champions sembrada en %s", gal)
+def _with_gallery(profile: ChampionsProfile) -> ChampionsProfile:
+    """Resuelve la galería Champions a la ruta CANÓNICA del usuario y la siembra ahí si
+    falta (desde la ruta del perfil o desde la empaquetada). Devuelve el perfil con esa
+    ruta absoluta, evitando depender de la ruta relativa del YAML (que al sembrarse podía
+    quedar mal)."""
+    canonical = paths.assets_dir() / "icons" / "champions" / "templates.npz"
+    if not canonical.exists():
+        for src in (profile.resolve(profile.species.gallery),
+                    paths.bundled_assets_dir() / "icons" / "champions" / "templates.npz"):
+            if src.exists() and src.resolve() != canonical.resolve():
+                canonical.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, canonical)
+                log.info("Galería Champions disponible en %s", canonical)
+                break
+    species = dataclasses.replace(profile.species, gallery=str(canonical))
+    return dataclasses.replace(profile, species=species)
 
 
 def _recognized(readings) -> list[int]:
@@ -91,7 +97,7 @@ def run_champions_loop(cfg: dict, stop_event=None) -> int:
         rival_thr = 0.25  # restringido al equipo rival → umbral más permisivo
     log.info("Umbral activos rivales (restringido al equipo): %.2f", rival_thr)
 
-    _ensure_gallery(profile)
+    profile = _with_gallery(profile)
     capturer = Capturer(profile.capture, profile.reference_resolution)
     matcher = SpeciesMatcher(profile)  # duck-typing: usa profile.resolve()/profile.species
     extractor = BattleExtractor(profile, matcher, min_similarity=thr, rival_min_similarity=rival_thr)
