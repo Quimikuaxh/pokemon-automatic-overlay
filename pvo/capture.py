@@ -13,14 +13,23 @@ from typing import Optional
 from .profiles.schema import CaptureProfile, Region
 
 
+def _title_alternatives(title_match: str) -> list[str]:
+    """`title_match` puede traer varias alternativas separadas por '|' (p. ej. para
+    cubrir OBS en español e inglés: 'Proyector|Windowed Projector')."""
+    return [a.strip().lower() for a in (title_match or "").split("|") if a.strip()]
+
+
 def _find_window_bbox(title_match: str) -> Optional[Region]:
-    """Localiza la ventana cuyo título contenga `title_match`. Devuelve (x,y,w,h)."""
+    """Localiza la ventana cuyo título contenga `title_match` (o cualquier alternativa
+    separada por '|'). Devuelve (x,y,w,h)."""
     try:
         import pygetwindow as gw  # type: ignore
     except Exception:
         return None
+    alts = _title_alternatives(title_match)
     for w in gw.getAllWindows():
-        if title_match.lower() in (w.title or "").lower() and w.width > 0 and w.height > 0:
+        title = (w.title or "").lower()
+        if any(a in title for a in alts) and w.width > 0 and w.height > 0:
             return (int(w.left), int(w.top), int(w.width), int(w.height))
     return None
 

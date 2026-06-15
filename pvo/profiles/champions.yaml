@@ -6,7 +6,7 @@ profile: champions
 reference_resolution: [1920, 1080]
 mode: Doubles
 capture:
-  window_title_match: Windowed Projector
+  window_title_match: Proyector|Windowed Projector   # ES|EN; admite alternativas con '|'
   viewport: auto
   aspect_ratio: 1.7778
   fps: 2

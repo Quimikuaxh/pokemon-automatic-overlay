@@ -28,6 +28,7 @@ def _find_hwnd(title_match: str):
 
     user32 = ctypes.windll.user32
     found = []
+    alts = [a.strip().lower() for a in (title_match or "").split("|") if a.strip()]
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def _cb(hwnd, _lparam):
@@ -38,7 +39,8 @@ def _find_hwnd(title_match: str):
             return True
         buf = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buf, length + 1)
-        if title_match.lower() in buf.value.lower():
+        title = buf.value.lower()
+        if any(a in title for a in alts):
             found.append(hwnd)
             return False
         return True
