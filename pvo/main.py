@@ -29,7 +29,19 @@ from .agent.core import VERSION
 log = logging.getLogger("pvo")
 
 
+def _force_utf8_console() -> None:
+    """La consola de Windows usa cp1252/cp850 por defecto y destroza los acentos
+    ('envío' → 'env?o') o revienta con las flechas de los mensajes. Se fuerza UTF-8
+    con reemplazo, para que un carácter raro nunca tumbe la app por un log."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass  # stream redirigido o sin reconfigure: se deja como esté
+
+
 def _setup_logging(verbose: bool = False) -> None:
+    _force_utf8_console()
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",

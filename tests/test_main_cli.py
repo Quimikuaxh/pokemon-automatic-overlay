@@ -85,13 +85,16 @@ class TestArranque(unittest.TestCase):
 
 class TestDetectSaves(unittest.TestCase):
     def test_sin_resultados_devuelve_1_y_lista_las_rutas(self):
+        # Path("/tmp") se imprime "\tmp" en Windows: se compara con str(root), no
+        # con el literal, para que el test valga en los dos SO.
+        root = Path("/tmp")
         out = io.StringIO()
         with mock.patch("pvo.sav.locate.find_saves", return_value=[]), \
-             mock.patch("pvo.sav.locate.default_roots", return_value=[Path("/tmp")]), \
+             mock.patch("pvo.sav.locate.default_roots", return_value=[root]), \
              redirect_stdout(out):
             code = cli.cmd_detect_saves()
         self.assertEqual(code, 1)
-        self.assertIn("/tmp", out.getvalue())
+        self.assertIn(str(root), out.getvalue())
 
 
 if __name__ == "__main__":
