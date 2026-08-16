@@ -1,9 +1,12 @@
 [project]
 name = "pokemon-vision-overlay"
-version = "0.1.0"
-description = "Lee el equipo Pokémon de un emulador por visión y lo publica en el overlay público de claude-test."
+version = "0.2.0"
+description = "Agente que lee el equipo Pokemon del emulador (partida guardada o memoria) y lo publica en el overlay de claude-test."
 requires-python = ">=3.10"
 dynamic = ["dependencies"]
+
+[project.scripts]
+poke-overlay = "pvo.main:main"
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

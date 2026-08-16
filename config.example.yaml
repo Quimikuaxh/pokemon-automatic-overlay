@@ -1,25 +1,18 @@
-# Copia este fichero a config.yaml y rellena tus valores.
+# Copia este fichero a config.yaml y rellena los dos campos de abajo.
 # config.yaml está en .gitignore porque contiene el token secreto.
+#
+# No hay nada más que configurar aquí: la fuente del equipo (partida guardada o
+# memoria), la ruta del save, el juego y los intervalos se eligen desde la pestaña
+# "Stream" de claude-test, en el navegador. El agente los guarda solo en config.yaml
+# para reanudar con ellos la próxima vez que lo abras.
 
 # Base del backend de claude-test (sin barra final).
 api_base: "https://tu-backend.onrender.com"
 
-# Token de ingesta de máquina. Cópialo desde la pestaña "Stream" de claude-test.
+# Token de ingesta de máquina. Cópialo de la pestaña "Stream" de claude-test.
 ingest_token: "00000000-0000-0000-0000-000000000000"
 
-# Fuente del equipo:
-#   "vision"    → reconoce los iconos en la pantalla (cualquier emulador).
-#   "retroarch" → lee la memoria del juego vía RetroArch (mucho más fiable; GBA/DS).
-source: "vision"
-
-# --- Solo si source = vision ---
-# Perfil de juego a usar (fichero en pvo/profiles/<profile>.yaml).
-profile: "gba_emerald"
-
-# --- Solo si source = retroarch ---
-retroarch_host: "127.0.0.1"
-retroarch_port: 55355
-party_address: "0x020244EC"   # gPlayerParty en Pokémon Esmeralda (GBA)
-
-# Cada cuántos segundos publicar como máximo (debounce de red).
-publish_min_interval_s: 1.0
+# --- Avanzado (normalmente no hace falta tocarlo) ---
+# URL del WebSocket de control. Si se deja vacío se deriva de api_base
+# (https → wss, http → ws). Solo se rellena si el canal va por otro host.
+# bridge_url: ""

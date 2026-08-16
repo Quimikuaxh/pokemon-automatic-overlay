@@ -27,43 +27,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: Ensure assets dir exists
-        # Los assets (templates/embeddings) son específicos del render del usuario y
-        # no van en el repo; se crea vacío para que --add-data no falle.
-        shell: pwsh
-        run: if (!(Test-Path assets)) { New-Item -ItemType Directory -Path assets | Out-Null }
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
 
       - name: Build with PyInstaller
-        # --onedir (no --onefile): evita re-extraer ~1-2 GB de torch a /temp en cada
-        # arranque (eso ralentizaba el PC). Se distribuye como carpeta comprimida.
-        run: >
-          pyinstaller --onedir --noconfirm --name poke-overlay
-          --collect-all easyocr
-          --collect-all torch
-          --collect-all torchvision
-          --add-data "pvo/profiles;pvo/profiles"
-          --add-data "assets;assets"
-          run.py
+        # --onefile: sin OCR neural ni OpenCV el binario son unos pocos MB, así que un
+        # único .exe es lo más cómodo de distribuir. El punto de entrada es run.py (no
+        # pvo/main.py, que como script suelto rompería los imports relativos).
+        # No hay --add-data: la app ya no usa perfiles ni galerías de iconos.
+        run: pyinstaller --onefile --noconfirm --name poke-overlay run.py
 
       - name: Stage release files
         shell: pwsh
         run: |
-          Copy-Item config.example.yaml dist/poke-overlay/
-          Copy-Item README.md dist/poke-overlay/
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Copy-Item dist/poke-overlay.exe release/
+          Copy-Item config.example.yaml release/
+          Copy-Item README.md release/
 
-      # Sube la CARPETA (GitHub la comprime una sola vez → al descargar es un único
-      # zip con la app dentro, sin doble compresión).
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: poke-overlay-windows
-          path: dist/poke-overlay
+          path: release
           if-no-files-found: error
 
       - name: Zip for release
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
-        run: Compress-Archive -Path dist/poke-overlay/* -DestinationPath poke-overlay-windows.zip -Force
+        run: Compress-Archive -Path release/* -DestinationPath poke-overlay-windows.zip -Force
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
