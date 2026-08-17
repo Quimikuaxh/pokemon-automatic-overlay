@@ -1,12 +1,5 @@
-# App local de visión — dependencias de runtime
-numpy>=1.26
-opencv-python>=4.9
-mss>=9.0
+# Agente local — dependencias de runtime (deliberadamente mínimas: la app pesa MB, no GB).
 PyYAML>=6.0
 requests>=2.31
-# Detección de la ventana del emulador por título.
-PyGetWindow>=0.0.9
-# OCR neural (robusto a render HD). EasyOCR arrastra torch/torchvision.
-easyocr>=1.7
-torch>=2.2
-torchvision>=0.17
+# Canal de control con la web de claude-test (WebSocket saliente).
+websocket-client>=1.7

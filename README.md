@@ -1,194 +1,178 @@
-# pokemon-vision-overlay
+# poke-overlay (pokemon-vision-overlay)
 
-Lee **el equipo Pokémon** de un emulador (GBA/NDS/3DS) **por visión sobre la
-interfaz** (sin leer memoria) y lo publica en el **overlay público** de `claude-test`
-(la misma vista `/stream/:token` que se usa en OBS y se puede compartir por URL).
+Lee **tu equipo Pokémon** del emulador y lo publica en el **overlay público** de
+`claude-test` (la vista `/stream/:shareToken` que se usa en OBS).
 
-Patrón: lee el equipo **al abrir el menú de equipo**, lo **cachea** y lo mantiene
-estático mientras viajas/combates; solo lo refresca en la siguiente apertura.
+Es un **agente sin ventana**: se arranca y se olvida. Toda la interfaz vive en la web
+de claude-test, en la pestaña **Stream**, y se comunica con el agente por un canal
+seguro. Así se maneja igual desde el móvil o desde otro PC.
 
-- **Especie** → identificada por el **icono** del menú con *template matching
-  enmascarado* (compara solo los píxeles del Pokémon usando la máscara del sprite, así
-  ignora el fondo del panel; ZNCC + búsqueda de bamboleo). Automático para toda la
-  Pokédex y sin torch.
-- **Mote** → leído por **OCR neural** (EasyOCR).
+> El nombre del repo es histórico: el modo de **visión/OCR** ya no existe. Ahora el
+> equipo se lee de la **partida guardada** o de la **memoria del emulador**, que son
+> fiables al 100% y no requieren calibrar nada.
 
-## Fuente: RetroArch (memoria) — recomendado para GBA/DS
-
-Si juegas en **RetroArch** (o corres DS en su core melonDS), puedes leer el equipo
-**directo de la memoria del juego** en vez de por visión: sin calibrar, sin reconocer
-iconos, **100% fiable** y con motes reales.
-
-1. En RetroArch: **Settings → Network → Network Commands = ON** (puerto 55355).
-2. En la app: **Fuente = `retroarch`**, y **Dirección equipo** = `0x020244EC`
-   (gPlayerParty en Pokémon Esmeralda). Pulsa **▶ Arrancar**.
-
-Lee los 6 Pokémon (especie, + mote en gen 3) y los publica igual que la visión.
-
-**Juegos** (desplegable "Juego (memoria)", rellena dirección/generación):
-- **GBA (gen 3)**: Esmeralda, Rojo Fuego/Verde Hoja, Rubí/Zafiro. Direcciones fiables.
-- **DS (gen 4/5)**: Diamante/Perla, Platino, HG/SS, Negro/Blanco, N2/B2. Corre el juego
-  en RetroArch con el core **melonDS DS**. Las direcciones DS son **orientativas**
-  (versión inglesa): si sale el equipo vacío, hay que localizar la dirección de tu
-  versión.
-- **3DS (Azahar)**: no hay API de memoria → ahí se usa la visión.
-
-> La dirección `party_address` y la generación dependen del juego; el desplegable las
-> pone por ti. Para versiones en otros idiomas puede haber que ajustar la dirección.
-
-## Arquitectura
+## Cómo funciona
 
 ```
-Emulador → captura 2-3 fps → detector de menú (gatillo ligero)
-        → al abrir el menú: extrae 6 slots (icono→dexId, texto→mote)
-        → cachea/valida → POST /api/stream-team/ingest/:ingestToken (claude-test)
-        → la vista pública /stream/:shareToken pinta sprite (por dexId) + mote
+   TU PC (donde juegas)                        claude-test (en la nube)
+┌─────────────────────────┐                 ┌───────────────────────────┐
+│  emulador               │                 │  backend                  │
+│    │                    │                 │    ├── /api/stream-team/  │
+│    ├── partida.srm ─────┼── watcher ──┐   │    │   ingest/:token      │
+│    └── memoria ─────────┼── RetroArch ┤   │    └── /api/stream-team/  │
+│                         │             │   │        agent/:token (ws)  │
+│  agente poke-overlay ◀──┴─────────────┘   │                           │
+│         │                                 │  navegador (pestaña       │
+│         ├── POST equipo ──────────────────▶─── Stream) ◀── ws ────────│
+│         └── ws saliente ──────────────────▶                           │
+└─────────────────────────┘                 └───────────────────────────┘
+                                                        │
+                                            vista pública /stream/:token → OBS
 ```
 
-Dos conjuntos de sprites distintos:
-- **Matching** (identificar): iconos de TU render → `assets/icons/<perfil>/`.
-- **Display** (pintar en la web): los resuelve `claude-test` por nº de Pokédex.
+El agente **abre él la conexión** hacia el backend (WebSocket saliente, autenticado
+con tu `ingest_token`). No hay que abrir puertos ni tocar el router, y funciona con la
+web en https sin problemas de *mixed content*.
 
-## Requisitos
+## Las dos formas de leer el equipo
 
-- Python 3.10+
-- Dependencias: `pip install -r requirements.txt`
-  (EasyOCR arrastra `torch`/`torchvision`; la primera ejecución descarga modelos.
-  Incluye `PyGetWindow` para localizar la ventana del emulador por título.)
+### 1. Partida guardada (modo SAV) — recomendado
 
-## Uso (interfaz gráfica)
+Se vigila el **fichero de partida** del emulador. Cuando guardas dentro del juego, el
+emulador reescribe ese fichero, el agente lo detecta y publica el equipo. No hay que
+hacer nada más.
 
-Al abrir el `.exe` (o `python -m pvo.main` sin argumentos) se abre una **ventana**:
+| Plataforma | Juegos | Emuladores |
+|---|---|---|
+| GBA (gen 3) | Rubí/Zafiro, Esmeralda, Rojo Fuego/Verde Hoja | mGBA, VBA-M, RetroArch |
+| NDS (gen 4/5) | Diamante/Perla, Platino, HG/SS, Negro/Blanco, N2/B2 | DeSmuME, melonDS, RetroArch |
+| 3DS (gen 6/7) | X/Y, Rubí Omega/Zafiro Alfa, Sol/Luna, Ultra Sol/Ultra Luna | Citra, Azahar |
 
-- Campos **API base** e **Ingest token** (se guardan en `config.yaml`).
-- Desplegable **Juego (perfil)** con los perfiles disponibles.
-- **Calibrar nuevo juego…**: pide nombre + título de ventana + generación.
-- **Probar envío**: manda un equipo de prueba para verificar la web.
-- **▶ Arrancar / ■ Parar** y un **panel de log** con lo que va detectando.
+**La extensión da igual.** Cada emulador usa la suya (`.sav`, `.srm`, `.fla`, `.flash`,
+`.sa1`, `.sgm`, `.dsv`, `.duc`, o el fichero `main` de 3DS), así que el reconocimiento
+es **por contenido**: se quitan los envoltorios conocidos (el footer `|-DESMUME SAVE-|`
+de los `.dsv`, la cabecera de los `.duc`) y se busca el equipo validando los checksums
+de las propias estructuras Pokémon. Por eso funciona sin depender de la versión ni del
+idioma del juego.
 
-Para quien lo prefiera, todo sigue disponible por línea de comandos (secciones de
-abajo); la GUI no es más que un envoltorio sobre ellas.
+**Los savestates no valen.** Un `.state` / `.ss0` / `.st0` es un volcado del emulador,
+no una partida. Si seleccionas uno, el agente te lo dice claramente en vez de fallar en
+silencio: **guarda dentro del juego** para que se escriba la partida de verdad.
 
-### Dónde se guardan los datos (persisten entre actualizaciones)
+> **Switch (gen 8/9)** — Espada/Escudo, BDSP, Leyendas Arceus, Escarlata/Púrpura — aún
+> **no** está soportado. La arquitectura ya está preparada: añadir una plataforma es
+> añadir una entrada a `PARSERS` en `pvo/sav/parsers.py`.
+>
+> **Fangames de RPG Maker / Pokémon Essentials** (tipo Pokémon Añil) quedan **fuera de
+> alcance**: guardan en `Game.rxdata` (Ruby Marshal con clases propias de cada fangame)
+> y no hay un formato común que parsear.
 
-Los datos del usuario NO viven dentro de la app, sino en la **carpeta de datos del
-sistema**, así que **sobrescribir/actualizar la app no los borra**:
+### 2. Memoria en vivo (RetroArch)
 
-- Windows: `%APPDATA%\poke-overlay\`
-- Linux: `~/.local/share/poke-overlay/`
-- macOS: `~/Library/Application Support/poke-overlay/`
+Si juegas en **RetroArch**, se puede leer la memoria del juego mientras juegas, así que
+el equipo se actualiza al instante en vez de al guardar.
 
-```
-poke-overlay/                 (en %APPDATA%, etc.)
-  config.yaml                 ← api_base, token, perfil
-  profiles/<juego>.yaml       ← perfiles que calibras
-  assets/
-    templates/<juego>/party_menu.png
-    icons/gen3/ … gen9/       ← galerías incluidas (templates.npz)
-```
+1. En RetroArch: **Ajustes → Red → Comandos de red = ON** (puerto 55355).
+2. En la pestaña Stream de la web: fuente **Memoria (RetroArch)** y elige el juego.
 
-Al primer arranque, la app **siembra** ahí las galerías y los perfiles de ejemplo que
-trae empaquetados (sin pisar lo que ya tengas).
+Juegos disponibles en `pvo/memory/games.py` (GBA gen 3 y NDS gen 4/5). Las direcciones
+de NDS son orientativas de la versión inglesa: si sale el equipo vacío, usa el modo SAV.
 
-### Galerías de iconos incluidas
-
-La app trae galerías de menu sprites por generación (gen 3–9, fuente Bulbagarden) ya
-convertidas a `templates.npz`. Al **calibrar**, indica la **generación** del juego y el
-perfil usa esa galería directamente: **no hay que generar ni etiquetar nada**.
-
-El reconocimiento compara solo los **píxeles del Pokémon** (máscara del sprite),
-ignorando el fondo del panel del menú, así que funciona con los sprites estándar para
-toda la Pokédex. (Si tu render reemplaza por completo los iconos, regenera la galería
-con `pvo.tools.build_templates` a partir de tus capturas.)
-
-> **Probar envío.** El botón homónimo manda un equipo de prueba al endpoint para
-> verificar `api_base`/token/red sin depender del reconocimiento.
-
-## Configuración (CLI)
-
-1. Copia `config.example.yaml` a `config.yaml` y rellena:
-   - `api_base`: URL del backend de claude-test.
-   - `ingest_token`: cópialo desde la pestaña **Stream** de claude-test.
-   - `profile`: nombre de un perfil en `pvo/profiles/`.
-2. Crea el **perfil de juego** con el asistente de calibración (ver abajo) en vez de
-   medir píxeles a mano.
-
-## Calibrar un juego (asistente)
-
-Cada juego/generación necesita su perfil **una vez** (el layout del menú difiere). El
-asistente lo genera a base de clics y **detecta solo el área de juego** (recorta el
-cromo del emulador); las coordenadas se guardan en resolución de referencia, así que
-son **independientes del tamaño de ventana/zoom**.
+## Instalación y arranque
 
 ```bash
-# abre el menú de equipo en el emulador, y luego (gen 3 = GBA):
-python -m pvo.main --calibrate esmeralda --window "mGBA" --gen 3
+pip install -r requirements.txt
+cp config.example.yaml config.yaml    # rellena api_base e ingest_token
+python -m pvo.main
 ```
 
-La **generación** (`--gen 3..9`, o el desplegable en la GUI) fija a la vez la galería
-de iconos y la **resolución/aspecto** del sistema (GBA 240×160, NDS 256×192, 3DS
-400×240, Switch 480×270). No necesitas saber resoluciones.
+El `ingest_token` se copia de la pestaña **Stream** de claude-test.
 
-Se abre una ventana con la captura ya recortada y normalizada. Dibuja un rectángulo
-sobre cada **icono** (6), cada **mote** (6, o `n` si el juego no lo muestra) y una
-**zona fija del menú** (firma para el detector).
+### El `config.yaml` son dos campos
 
-Flags de override (avanzado): `--region x,y,w,h` (en vez de `--window`), `--res WxH`,
-`--aspect`, `--viewport x,y,w,h` (si la detección automática del área falla), `--lang`.
+Solo hay que rellenar **`api_base`** e **`ingest_token`**. Nada más. Todo lo demás — si
+lees de la partida guardada o de la memoria, qué fichero, qué juego, cada cuánto se
+comprueba — se elige **desde la pestaña Stream**, en el navegador.
 
-> En NDS/3DS (doble pantalla) configura el emulador para mostrar **solo la pantalla
-> del menú**, o usa `--region`/`--viewport` para acotarla.
+Y no hay que reelegirlo cada vez: el agente **guarda solo** en `config.yaml` lo que
+configures desde la web, así que al volver a abrir el ejecutable **reanuda con lo
+último** sin tocar nada. Si lo paraste desde la web, arranca parado. Si nunca has
+configurado nada, se queda esperando órdenes.
 
-Con la generación indicada, el perfil ya apunta a la galería incluida: **no hay paso
-manual de referencia**. (Para regenerar plantillas desde tus propias capturas:
-`python -m pvo.tools.build_templates --icons <carpeta> --out <carpeta>/templates.npz`.)
+> Esos campos son estado interno del agente: no hace falta editarlos a mano (y si lo
+> haces, la web los sobrescribirá la próxima vez que cambies algo).
 
-## Ejecutar
+### Comandos
 
 ```bash
-python -m pvo.main -c config.yaml
+poke-overlay                 # arranca el agente (reanuda lo último, si lo hay)
+poke-overlay --detect-saves  # lista las partidas guardadas que encuentra
+poke-overlay --read <save>   # lee un fichero de partida y muestra el equipo
+poke-overlay -v              # log detallado
 ```
 
-Abre el menú de equipo en el emulador: en los logs verás la detección del menú, las 6
-especies (con su similitud), los motes y si se publicó. Al cerrar el menú el equipo se
-mantiene estático.
+`--detect-saves` y `--read` son la vía rápida para comprobar que tu partida se lee bien
+antes de montar nada.
 
-## Empaquetar (sin Python en destino)
+### Dónde vive la config
+
+En la carpeta de datos del sistema, para que **sobreviva a las actualizaciones**:
+
+- Windows: `%APPDATA%\poke-overlay\config.yaml`
+- Linux: `~/.local/share/poke-overlay/config.yaml`
+- macOS: `~/Library/Application Support/poke-overlay/config.yaml`
+
+En desarrollo (ejecutando desde el repo) se usa `config.yaml` en la raíz del proyecto.
+
+## Uso desde la web
+
+En claude-test → pestaña **Stream** → panel **Agente local**:
+
+- **Buscar partidas guardadas**: el agente rastrea las carpetas habituales de los
+  emuladores y devuelve solo las que **de verdad se leen** (con cuántos Pokémon tiene
+  cada una). También puedes pegar una ruta a mano y comprobarla.
+- **Arrancar / Parar**, el estado en vivo, el último equipo recibido y un registro de
+  lo que va pasando.
+
+Si el agente no está arrancado, el panel lo dice y los botones quedan deshabilitados.
+
+## El ejecutable (.exe)
+
+### Descargarlo y usarlo
+
+El `.exe` se compila en GitHub Actions, así que no hace falta tener Windows ni Python
+para generarlo:
+
+1. **Actions → Build Windows executable → Run workflow** (o publica un tag `vX.Y.Z` y
+   el `.exe` se adjunta a la release).
+2. Descarga el artefacto **`poke-overlay-windows`**: un zip con `poke-overlay.exe`,
+   `config.example.yaml` y este README.
+3. Descomprime donde quieras, renombra `config.example.yaml` a `config.yaml` y rellena
+   `api_base` e `ingest_token`.
+4. Ejecuta `poke-overlay.exe`. Es una **aplicación de consola**: se queda abierta
+   mostrando el log mientras el agente trabaja, y se cierra con Ctrl+C o cerrando la
+   ventana. Si prefieres pasarle opciones, ábrelo desde `cmd`:
+
+```
+poke-overlay.exe --detect-saves
+poke-overlay.exe --read "C:\ruta\a\tu\partida.srm"
+```
+
+> El `config.yaml` que uses realmente vive en `%APPDATA%\poke-overlay\`. Si arrancas el
+> `.exe` sin config, se crea ahí uno con los valores por defecto y la ruta sale en el
+> log; edítalo y vuelve a arrancar.
+
+### Compilarlo a mano
 
 ```bash
 pip install pyinstaller
-pyinstaller --onedir --noconfirm --name poke-overlay \
-  --collect-all easyocr --collect-all torch --collect-all torchvision \
-  --add-data "pvo/profiles:pvo/profiles" \
-  --add-data "assets:assets" \
-  run.py
+pyinstaller --onefile --noconfirm --name poke-overlay run.py
 ```
 
-> **Usa `--onedir`, no `--onefile`.** Con `--onefile` el ejecutable re-extrae ~1-2 GB
-> de torch a una carpeta temporal en **cada arranque**, lo que ralentiza muchísimo el
-> PC. `--onedir` genera una carpeta (`dist/poke-overlay/`) que arranca rápido; se
-> distribuye comprimida. El punto de entrada debe ser **`run.py`** (no `pvo/main.py`,
-> que como script suelto rompe los imports relativos).
-
-La carpeta queda en `dist/poke-overlay/`. Pesa bastante por los modelos ML (trade-off
-de usar OCR neural robusto a HD). Pruébala en una máquina sin Python.
-
-### Compilar el .exe de Windows sin tener Windows/Python
-
-PyInstaller **no** hace cross-compile desde Linux. Para obtener el `.exe` sin montar
-un entorno Windows propio, usa el workflow `.github/workflows/build-windows.yml`:
-compila en un runner `windows-latest` y sube el binario como artefacto.
-
-- Manual: pestaña **Actions → Build Windows executable → Run workflow**.
-- Por release: crea un tag `vX.Y.Z` y el `.exe` se adjunta a la release.
-
-Descarga el artefacto `poke-overlay-windows` (un **.zip** con la carpeta de la app:
-`poke-overlay.exe`, `_internal/`, `config.example.yaml`). Descomprímela entera y
-ejecuta `poke-overlay.exe` desde dentro. El usuario final no necesita Python.
-
-> Los `assets/` (templates/embeddings) son específicos de tu render y **no** están en
-> el repo, así que el `.exe` de CI se construye sin ellos: colócalos junto al binario
-> y apunta tu perfil a esas rutas.
+Queda en `dist/poke-overlay`. Se usa `--onefile` (un único binario de unos pocos MB) y
+el punto de entrada es **`run.py`**, no `pvo/main.py`: como script suelto rompería los
+imports relativos del paquete. No hay que empaquetar assets ni perfiles: la app ya no
+usa ninguno.
 
 ## Tests
 
@@ -196,7 +180,37 @@ ejecuta `poke-overlay.exe` desde dentro. El usuario final no necesita Python.
 python -m unittest discover -s tests -v
 ```
 
-Cubren la lógica pura (estado/cache, validación de perfil, publicación). Los módulos
-de visión (`capture`, `menu_detector`, `species_matcher`, `ocr`) requieren las
-dependencias instaladas y un emulador real para probarse end-to-end.
+Cubren el descifrado de las estructuras Pokémon, la localización del equipo dentro del
+fichero de partida, los contenedores de cada emulador, el watcher y el control del
+agente. Las partidas de prueba se **generan sintéticamente** (`tests/savefixtures.py`),
+así que no hace falta ningún fichero real ni se versionan datos personales.
+
+Para contrastar contra partidas reales, apunta a una carpeta con las tuyas:
+
+```bash
+PVO_REAL_SAVES=/ruta/con/mis/saves python -m unittest discover -s tests -v
+```
+
+## Estructura
+
+```
+pvo/
+  main.py            punto de entrada (CLI del agente)
+  appconfig.py       config.yaml
+  paths.py           dónde viven config y log
+  publisher.py       POST del equipo al endpoint de ingesta
+  pkm.py             descifrado común de gen 4-7 (bloques barajados + LCG)
+  agent/
+    core.py          lógica de control (sin red → testeable)
+    protocol.py      mensajes del canal de control
+    bridge.py        WebSocket saliente con reconexión
+    sources.py       fuentes: partida guardada / RetroArch
+  sav/
+    container.py     envoltorios por emulador y detección de savestates
+    scan.py          localización del equipo por checksum
+    gba.py           partidas de GBA (sectores de flash)
+    parsers.py       registro de plataformas ← punto de extensión
+    locate.py        búsqueda de partidas en el PC
+    watcher.py       vigilancia del fichero
+  memory/            lectura en vivo por RetroArch
 ```
